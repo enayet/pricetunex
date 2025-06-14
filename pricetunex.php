@@ -405,9 +405,6 @@ final class Pricetunex {
         });
     }    
     
-    
-    
-    
 
     /**
      * Get plugin version
@@ -435,6 +432,7 @@ final class Pricetunex {
     public function plugin_url() {
         return untrailingslashit( PRICETUNEX_PLUGIN_URL );
     }
+    
 }
 
 /**
