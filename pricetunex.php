@@ -91,7 +91,12 @@ final class Pricetunex {
             add_action( 'admin_notices', array( $this, 'woocommerce_missing_notice' ) );
             return;
         }
-
+        
+        // Check WooCommerce HPOS compatibility
+        if ( ! $this->check_hpos_compatibility() ) {
+            return;
+        }        
+        
         // Check minimum requirements
         if ( ! $this->check_requirements() ) {
             return;
@@ -99,6 +104,9 @@ final class Pricetunex {
 
         // Include required files
         $this->includes();
+        
+        // Declare WooCommerce HPOS compatibility
+        $this->declare_wc_compatibility();        
 
         // Initialize classes
         $this->init_classes();
@@ -356,6 +364,50 @@ final class Pricetunex {
             wp_kses_post( $message )
         );
     }
+    
+    
+    /**
+     * Check HPOS compatibility
+     *
+     * @return bool
+     */
+    private function check_hpos_compatibility() {
+        // Check if WooCommerce is using HPOS
+        if ( class_exists( \Automattic\WooCommerce\Utilities\OrderUtil::class ) ) {
+            // If HPOS is enabled, ensure our plugin is compatible
+            if ( \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
+                // Our plugin is compatible with HPOS since we only work with products, not orders
+                return true;
+            }
+        }
+        
+        // If HPOS is not available or not enabled, that's fine too
+        return true;
+    }
+
+    /**
+     * Declare WooCommerce compatibility
+     */
+    private function declare_wc_compatibility() {
+        // Declare HPOS compatibility
+        add_action( 'before_woocommerce_init', function() {
+            if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+                \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+            }
+        });
+
+        // Declare other WooCommerce features compatibility
+        add_action( 'before_woocommerce_init', function() {
+            if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+                // Declare compatibility with Cart and Checkout blocks
+                \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, true );
+            }
+        });
+    }    
+    
+    
+    
+    
 
     /**
      * Get plugin version
