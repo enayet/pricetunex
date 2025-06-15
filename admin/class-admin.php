@@ -25,7 +25,7 @@ class Pricetunex_Admin {
 
     /**
      * Initialize hooks
-     */
+     */    
     private function init_hooks() {
         // Add admin menu
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
@@ -39,12 +39,19 @@ class Pricetunex_Admin {
         add_action( 'wp_ajax_pricetunex_undo_changes', array( $this, 'ajax_undo_changes' ) );
         add_action( 'wp_ajax_pricetunex_get_logs', array( $this, 'ajax_get_logs' ) );
 
+        // NEW AJAX HANDLERS
+        add_action( 'wp_ajax_pricetunex_get_stats', array( $this, 'ajax_get_stats' ) );
+        add_action( 'wp_ajax_pricetunex_clear_logs', array( $this, 'ajax_clear_logs' ) );
+        add_action( 'wp_ajax_pricetunex_search_products', array( $this, 'ajax_search_products' ) );
+
         // Handle form submissions
         add_action( 'admin_post_pricetunex_save_settings', array( $this, 'handle_save_settings' ) );
 
         // Add admin notices
         add_action( 'admin_notices', array( $this, 'display_admin_notices' ) );
-    }
+    }    
+    
+    
 
     /**
      * Add admin menu under WooCommerce
@@ -436,4 +443,115 @@ class Pricetunex_Admin {
             'external' => esc_html__( 'External/Affiliate', 'pricetunex' ),
         );
     }
+    
+    
+    /**
+     * AJAX handler for getting statistics
+     */
+    public function ajax_get_stats() {
+        // Verify nonce
+        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
+        }
+
+        // Check user capabilities
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
+        }
+
+        try {
+            // Get product statistics
+            $product_query = new Pricetunex_Product_Query();
+            $stats = $product_query->get_product_statistics();
+
+            // Get total eligible products
+            $total_products = $product_query->get_total_products_count();
+
+            // Get last update time
+            $last_update = get_option( 'pricetunex_last_update', 0 );
+            $last_update_formatted = $last_update ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_update ) : esc_html__( 'Never', 'pricetunex' );
+
+            wp_send_json_success( array(
+                'total_products' => $total_products,
+                'last_update'    => $last_update_formatted,
+                'stats'          => $stats,
+            ) );
+
+        } catch ( Exception $e ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while retrieving statistics.', 'pricetunex' ) ) );
+        }
+    }
+
+    /**
+     * AJAX handler for clearing logs
+     */
+    public function ajax_clear_logs() {
+        // Verify nonce
+        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
+        }
+
+        // Check user capabilities
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
+        }
+
+        try {
+            // Clear activity logs
+            pricetunex_clear_activity_logs();
+
+            wp_send_json_success( array(
+                'message' => esc_html__( 'Activity logs cleared successfully.', 'pricetunex' ),
+            ) );
+
+        } catch ( Exception $e ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while clearing logs.', 'pricetunex' ) ) );
+        }
+    }
+
+    /**
+     * AJAX handler for product search (for future enhancement)
+     */
+    public function ajax_search_products() {
+        // Verify nonce
+        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
+        }
+
+        // Check user capabilities
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
+        }
+
+        $search_term = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+
+        if ( empty( $search_term ) ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'Search term is required.', 'pricetunex' ) ) );
+        }
+
+        try {
+            $product_query = new Pricetunex_Product_Query();
+            $products = $product_query->search_products( $search_term, 20 );
+
+            $formatted_products = array();
+            foreach ( $products as $product_data ) {
+                $product = $product_data['product'];
+                $formatted_products[] = array(
+                    'id'    => $product->get_id(),
+                    'name'  => $product->get_name(),
+                    'sku'   => $product->get_sku(),
+                    'price' => $product->get_regular_price(),
+                    'type'  => $product->get_type(),
+                );
+            }
+
+            wp_send_json_success( array(
+                'products' => $formatted_products,
+            ) );
+
+        } catch ( Exception $e ) {
+            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while searching products.', 'pricetunex' ) ) );
+        }
+    }    
+    
 }

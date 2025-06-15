@@ -1,5 +1,5 @@
 /**
- * PriceTuneX Admin JavaScript
+ * PriceTuneX Admin JavaScript - Complete Enhanced Version
  */
 (function($) {
     'use strict';
@@ -33,7 +33,7 @@
             $(document).on('click', '#preview-rules', this.handlePreviewRules.bind(this));
             $(document).on('click', '#apply-rules', this.handleApplyRules.bind(this));
             $(document).on('click', '#undo-last', this.handleUndoLast.bind(this));
-            $(document).on('click', '#refresh-logs', this.loadLogs.bind(this));
+            $(document).on('click', '#refresh-logs', this.handleRefreshLogs.bind(this));
             $(document).on('click', '#clear-logs', this.handleClearLogs.bind(this));
             
             // Modal events
@@ -147,6 +147,7 @@
                 return;
             }
             
+            this.setButtonLoading('preview-rules', true);
             this.showLoading(pricetunex_ajax.strings.processing);
             
             $.ajax({
@@ -159,7 +160,10 @@
                 },
                 success: this.handlePreviewSuccess.bind(this),
                 error: this.handleAjaxError.bind(this),
-                complete: this.hideLoading.bind(this)
+                complete: function() {
+                    PriceTuneXAdmin.setButtonLoading('preview-rules', false);
+                    PriceTuneXAdmin.hideLoading();
+                }
             });
         },
 
@@ -190,6 +194,14 @@
                 pricetunex_ajax.strings.confirm_undo,
                 'undo-changes'
             );
+        },
+
+        /**
+         * Handle refresh logs
+         */
+        handleRefreshLogs: function(e) {
+            e.preventDefault();
+            this.loadLogs();
         },
 
         /**
@@ -231,6 +243,7 @@
         executeApplyRules: function() {
             var formData = this.getFormData();
             
+            this.setButtonLoading('apply-rules', true);
             this.showLoading(pricetunex_ajax.strings.processing);
             
             $.ajax({
@@ -243,7 +256,10 @@
                 },
                 success: this.handleApplySuccess.bind(this),
                 error: this.handleAjaxError.bind(this),
-                complete: this.hideLoading.bind(this)
+                complete: function() {
+                    PriceTuneXAdmin.setButtonLoading('apply-rules', false);
+                    PriceTuneXAdmin.hideLoading();
+                }
             });
         },
 
@@ -251,6 +267,7 @@
          * Execute undo changes
          */
         executeUndoChanges: function() {
+            this.setButtonLoading('undo-last', true);
             this.showLoading(pricetunex_ajax.strings.processing);
             
             $.ajax({
@@ -262,7 +279,10 @@
                 },
                 success: this.handleUndoSuccess.bind(this),
                 error: this.handleAjaxError.bind(this),
-                complete: this.hideLoading.bind(this)
+                complete: function() {
+                    PriceTuneXAdmin.setButtonLoading('undo-last', false);
+                    PriceTuneXAdmin.hideLoading();
+                }
             });
         },
 
@@ -270,12 +290,32 @@
          * Execute clear logs
          */
         executeClearLogs: function() {
-            // Clear logs locally and refresh
-            $('#logs-container').html('<div class="logs-loading"><span class="spinner is-active"></span><p>Clearing logs...</p></div>');
+            this.setButtonLoading('clear-logs', true);
+            this.showLoading('Clearing logs...');
             
-            setTimeout(() => {
-                this.loadLogs();
-            }, 1000);
+            $.ajax({
+                url: pricetunex_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'pricetunex_clear_logs',
+                    nonce: pricetunex_ajax.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        PriceTuneXAdmin.showMessage('Logs cleared successfully.', 'success');
+                        PriceTuneXAdmin.loadLogs();
+                    } else {
+                        PriceTuneXAdmin.showMessage(response.data.message || 'Failed to clear logs.', 'error');
+                    }
+                },
+                error: function() {
+                    PriceTuneXAdmin.showMessage('An error occurred while clearing logs.', 'error');
+                },
+                complete: function() {
+                    PriceTuneXAdmin.setButtonLoading('clear-logs', false);
+                    PriceTuneXAdmin.hideLoading();
+                }
+            });
         },
 
         /**
@@ -308,38 +348,66 @@
         },
 
         /**
-         * Validate form data
+         * Enhanced form validation with better UX
          */
         validateForm: function(data) {
+            // Clear previous error highlights
+            $('.form-group').removeClass('error');
+            
             // Check if rule value is provided
             if (!data.rule_value || data.rule_value === 0) {
                 this.showMessage('Please enter a valid adjustment value.', 'error');
+                $('#rule_value').closest('.form-group').addClass('error');
                 $('#rule_value').focus();
                 return false;
+            }
+            
+            // Validate percentage range
+            if (data.rule_type === 'percentage') {
+                if (data.rule_value < -100 || data.rule_value > 1000) {
+                    this.showMessage('Percentage must be between -100% and 1000%.', 'error');
+                    $('#rule_value').closest('.form-group').addClass('error');
+                    $('#rule_value').focus();
+                    return false;
+                }
             }
             
             // Check scope-specific validations
             if (data.target_scope === 'categories' && data.categories.length === 0) {
                 this.showMessage('Please select at least one category.', 'error');
+                $('#categories').closest('.form-group').addClass('error');
                 $('#categories').focus();
                 return false;
             }
             
             if (data.target_scope === 'tags' && data.tags.length === 0) {
                 this.showMessage('Please select at least one tag.', 'error');
+                $('#tags').closest('.form-group').addClass('error');
                 $('#tags').focus();
                 return false;
             }
             
             if (data.target_scope === 'product_types' && data.product_types.length === 0) {
                 this.showMessage('Please select at least one product type.', 'error');
+                $('input[name="product_types[]"]').first().closest('.form-group').addClass('error');
                 return false;
             }
             
             if (data.target_scope === 'price_range' && data.price_min === 0 && data.price_max === 0) {
                 this.showMessage('Please specify a price range.', 'error');
+                $('#price_min').closest('.form-group').addClass('error');
                 $('#price_min').focus();
                 return false;
+            }
+            
+            // Validate price range logic
+            if (data.target_scope === 'price_range' && data.price_min > 0 && data.price_max > 0) {
+                if (data.price_min >= data.price_max) {
+                    this.showMessage('Maximum price must be greater than minimum price.', 'error');
+                    $('#price_max').closest('.form-group').addClass('error');
+                    $('#price_max').focus();
+                    return false;
+                }
             }
             
             return true;
@@ -420,6 +488,7 @@
          * Load activity logs
          */
         loadLogs: function() {
+            this.setButtonLoading('refresh-logs', true);
             $('#logs-container').html('<div class="logs-loading"><span class="spinner is-active"></span><p>Loading logs...</p></div>');
             
             $.ajax({
@@ -432,6 +501,9 @@
                 success: this.handleLogsSuccess.bind(this),
                 error: function() {
                     $('#logs-container').html('<p class="text-center">Error loading logs.</p>');
+                },
+                complete: function() {
+                    PriceTuneXAdmin.setButtonLoading('refresh-logs', false);
                 }
             });
         },
@@ -466,11 +538,9 @@
         },
 
         /**
-         * Update statistics
+         * Enhanced update statistics with proper AJAX call
          */
         updateStatistics: function() {
-            // This would typically make an AJAX call to get current stats
-            // For now, we'll use placeholder functionality
             $.ajax({
                 url: pricetunex_ajax.ajax_url,
                 type: 'POST',
@@ -479,17 +549,44 @@
                     nonce: pricetunex_ajax.nonce
                 },
                 success: function(response) {
-                    if (response.success) {
+                    if (response.success && response.data) {
                         $('#total-products').text(response.data.total_products || '-');
                         if (response.data.last_update) {
                             $('#last-update').text(response.data.last_update);
                         }
+                        
+                        // Update additional stats if elements exist
+                        if (response.data.stats) {
+                            var stats = response.data.stats;
+                            $('.stat-simple-products').text(stats.simple_products || 0);
+                            $('.stat-variable-products').text(stats.variable_products || 0);
+                            $('.stat-products-with-price').text(stats.products_with_price || 0);
+                            $('.stat-average-price').text(stats.average_price ? '$' + stats.average_price.toFixed(2) : '-');
+                        }
                     }
                 },
                 error: function() {
-                    // Silently fail for stats
+                    // Silently fail for stats - non-critical functionality
+                    console.log('Failed to load statistics');
                 }
             });
+        },
+
+        /**
+         * Add loading states to buttons
+         */
+        setButtonLoading: function(buttonId, loading) {
+            var $button = $('#' + buttonId);
+            if (loading) {
+                $button.prop('disabled', true);
+                $button.find('.dashicons').addClass('spin');
+                $button.data('original-text', $button.text());
+                $button.append(' <span class="spinner is-active" style="float: none; margin: 0 0 0 5px;"></span>');
+            } else {
+                $button.prop('disabled', false);
+                $button.find('.dashicons').removeClass('spin');
+                $button.find('.spinner').remove();
+            }
         },
 
         /**
@@ -557,6 +654,9 @@
             $('#pricetunex-rules-form')[0].reset();
             this.initFormDependencies();
             this.clearPreview();
+            
+            // Clear any error states
+            $('.form-group').removeClass('error');
         }
     };
 

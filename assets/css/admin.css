@@ -651,3 +651,228 @@
         transform: translateY(0);
     }
 }
+
+
+/* Form Error States */
+.form-group.error input,
+.form-group.error select {
+    border-color: #d63638 !important;
+    box-shadow: 0 0 0 1px #d63638;
+}
+
+.form-group.error label {
+    color: #d63638;
+}
+
+/* Loading states for buttons */
+.button .dashicons.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Enhanced statistics display */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-box {
+    background: #f8f9fa;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 15px;
+    text-align: center;
+}
+
+.stat-box .stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2271b1;
+    display: block;
+}
+
+.stat-box .stat-label {
+    font-size: 12px;
+    color: #646970;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 5px;
+}
+
+/* Progress bars for price ranges */
+.price-range-stats {
+    margin-top: 15px;
+}
+
+.price-range-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.price-range-bar {
+    width: 60%;
+    height: 6px;
+    background: #f0f0f1;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.price-range-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2271b1, #135e96);
+    transition: width 0.3s ease;
+}
+
+/* Enhanced preview styling */
+.preview-item {
+    transition: all 0.2s ease;
+}
+
+.preview-item:hover {
+    background: #f8f9fa;
+}
+
+.preview-item .product-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.preview-item .product-type {
+    background: #646970;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+/* Better modal styling */
+.modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Toast notifications */
+.pricetunex-toast {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    z-index: 999999;
+    min-width: 300px;
+    padding: 15px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: toastSlideIn 0.3s ease-out;
+}
+
+@keyframes toastSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.pricetunex-toast.success {
+    background: #00a32a;
+    color: #fff;
+}
+
+.pricetunex-toast.error {
+    background: #d63638;
+    color: #fff;
+}
+
+.pricetunex-toast.warning {
+    background: #dba617;
+    color: #fff;
+}
+
+/* Better responsive handling */
+@media (max-width: 600px) {
+    .pricetunex-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .form-actions .button {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+    
+    .pricetunex-toast {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+}
+
+/* Loading skeleton */
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f1 25%, #e0e0e1 50%, #f0f0f1 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Improved form styling */
+.form-row {
+    display: flex;
+    gap: 15px;
+    align-items: end;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.help-tip {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: #646970;
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+    cursor: help;
+    margin-left: 5px;
+}
