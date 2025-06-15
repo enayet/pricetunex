@@ -410,6 +410,8 @@ class Pricetunex_Admin {
         // Rounding options
         $sanitized['apply_rounding'] = isset( $data['apply_rounding'] ) && ! empty( $data['apply_rounding'] );
         $sanitized['rounding_type'] = isset( $data['rounding_type'] ) ? sanitize_text_field( wp_unslash( $data['rounding_type'] ) ) : '0.99';
+        $sanitized['custom_ending'] = isset( $data['custom_ending'] ) ? floatval( $data['custom_ending'] ) : 0;        
+        
 
         // DEBUG: Log the final sanitized data
         error_log( 'PriceTuneX: Final sanitized rule data: ' . print_r( $sanitized, true ) );

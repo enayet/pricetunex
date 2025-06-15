@@ -127,12 +127,15 @@ function pricetunex_calculate_percentage_change( $old_value, $new_value ) {
  * @param string $custom_ending Custom ending for rounding (optional).
  * @return float Rounded price.
  */
-function pricetunex_apply_psychological_pricing( $price, $rounding_type = '0.99', $custom_ending = '' ) {
+function pricetunex_apply_psychological_pricing( $price, $rounding_type = '0.99', $custom_ending = 0 ) {
     $price = floatval( $price );
     
     switch ( $rounding_type ) {
         case '0.99':
             return floor( $price ) + 0.99;
+            
+        case '0.97':
+            return floor( $price ) + 0.97;
             
         case '0.95':
             return floor( $price ) + 0.95;

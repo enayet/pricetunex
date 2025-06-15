@@ -121,6 +121,7 @@
             }
         },
 
+        
         /**
          * Handle rounding toggle
          */
@@ -129,10 +130,28 @@
             
             if (isChecked) {
                 $('#rounding-options').show();
+                // Also check if custom is selected to show custom field
+                this.handleRoundingTypeChange();
             } else {
                 $('#rounding-options').hide();
+                $('#custom-ending-field').hide();
             }
-        },
+        },        
+        
+        
+        /**
+         * Handle rounding type change
+         */
+        handleRoundingTypeChange: function() {
+            var roundingType = $('#rounding_type').val();
+            
+            if (roundingType === 'custom') {
+                $('#custom-ending-field').show();
+            } else {
+                $('#custom-ending-field').hide();
+            }
+        },        
+        
 
         /**
          * Handle preview rules

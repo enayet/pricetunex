@@ -940,3 +940,20 @@
     box-shadow: 0 0 0 1px #2271b1;
     outline: 2px solid transparent;
 }
+
+
+/* Custom ending field styling */
+#custom-ending-field {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f1;
+}
+
+#custom-ending-field input {
+    max-width: 200px;
+}
+
+#custom-ending-field .description {
+    color: #135e96;
+    font-weight: 500;
+}

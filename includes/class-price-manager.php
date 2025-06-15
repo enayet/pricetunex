@@ -277,19 +277,29 @@ class Pricetunex_Price_Manager {
      */
     private function apply_psychological_pricing( $price, $rule_data ) {
         $rounding_type = isset( $rule_data['rounding_type'] ) ? $rule_data['rounding_type'] : '0.99';
+        $custom_ending = isset( $rule_data['custom_ending'] ) ? floatval( $rule_data['custom_ending'] ) : 0;
 
         switch ( $rounding_type ) {
             case '0.99':
                 return floor( $price ) + 0.99;
             
+            case '0.97':
+                return floor( $price ) + 0.97;
+            
             case '0.95':
                 return floor( $price ) + 0.95;
+                
+            case '0.89':
+                return floor( $price ) + 0.89;
             
             case '0.00':
                 return round( $price );
             
             case 'custom':
-                // For custom rounding, default to .99 for now
+                if ( $custom_ending >= 0 && $custom_ending < 1 ) {
+                    return floor( $price ) + $custom_ending;
+                }
+                // Fall back to .99 if custom ending is invalid
                 return floor( $price ) + 0.99;
             
             default:

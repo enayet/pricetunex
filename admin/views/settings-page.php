@@ -255,6 +255,7 @@ $product_types = $this->get_product_types();
                                 </td>
                             </tr>
 
+<!--
                             <tr>
                                 <th scope="row"><?php echo esc_html__( 'Default Rounding', 'pricetunex' ); ?></th>
                                 <td>
@@ -274,6 +275,7 @@ $product_types = $this->get_product_types();
                                     </p>
                                 </td>
                             </tr>
+-->
                         </tbody>
                     </table>
 

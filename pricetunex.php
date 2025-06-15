@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'PRICETUNEX_VERSION', '1.0.9' );
+define( 'PRICETUNEX_VERSION', '1.1.1' );
 define( 'PRICETUNEX_PLUGIN_FILE', __FILE__ );
 define( 'PRICETUNEX_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'PRICETUNEX_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
@@ -234,7 +234,6 @@ final class Pricetunex {
             'enable_logging'    => true,
             'max_log_entries'   => 1000,
             'backup_prices'     => true,
-            'default_rounding'  => '0.99',
         );
 
         add_option( 'pricetunex_settings', $default_settings );
