@@ -245,6 +245,16 @@
     font-weight: bold;
 }
 
+.preview-note {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: #856404;
+}
+
 .preview-list {
     max-height: 300px;
     overflow-y: auto;
@@ -256,6 +266,11 @@
     padding: 12px;
     border-bottom: 1px solid #f0f0f1;
     font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.preview-item:hover {
+    background: #f8f9fa;
 }
 
 .preview-item:last-child {
@@ -876,3 +891,6 @@
     cursor: help;
     margin-left: 5px;
 }
+
+
+

@@ -1,5 +1,5 @@
 /**
- * PriceTuneX Admin JavaScript - FIXED VERSION
+ * PriceTuneX Admin JavaScript - CLEAN VERSION (NO CONFIRM CALLS)
  */
 (function($) {
     'use strict';
@@ -24,46 +24,13 @@
             this.loadLogs();
             this.updateStatistics();
             
-            // Test AJAX connection if debug enabled
-            if (pricetunex_ajax.debug) {
-                this.testAjaxConnection();
-            }
-            
             console.log('PriceTuneX Admin: Initialization complete');
-        },
-
-        /**
-         * ADDED: Test AJAX connection
-         */
-        testAjaxConnection: function() {
-            console.log('PriceTuneX: Testing AJAX connection...');
-            
-            $.ajax({
-                url: pricetunex_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'pricetunex_debug',
-                    nonce: pricetunex_ajax.nonce
-                },
-                success: function(response) {
-                    console.log('PriceTuneX: AJAX connection test successful', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('PriceTuneX: AJAX connection test failed', {
-                        status: status,
-                        error: error,
-                        response: xhr.responseText
-                    });
-                }
-            });
         },
 
         /**
          * Bind event handlers
          */
         bindEvents: function() {
-            console.log('PriceTuneX: Binding events...');
-            
             // Tab navigation
             $(document).on('click', '.nav-tab', this.handleTabClick.bind(this));
             
@@ -82,26 +49,14 @@
             // Modal events
             $(document).on('click', '.modal-close, #modal-cancel', this.hideModal.bind(this));
             $(document).on('click', '#modal-confirm', this.handleModalConfirm.bind(this));
-            
-            // Close modal when clicking outside
-            $(document).on('click', '.pricetunex-modal', function(e) {
-                if (e.target === this) {
-                    PriceTuneXAdmin.hideModal();
-                }
-            });
         },
 
         /**
          * Initialize tab functionality
          */
         initTabs: function() {
-            // Show first tab by default
             $('.tab-content').hide();
             $('.tab-content.active').show();
-            
-            // Activate first tab
-            $('.nav-tab').removeClass('nav-tab-active');
-            $('.nav-tab[data-tab="price-rules"]').addClass('nav-tab-active');
         },
 
         /**
@@ -119,7 +74,7 @@
             
             // Show target content
             $('.tab-content').removeClass('active').hide();
-            $('#' + targetTab).addClass('active').fadeIn(300);
+            $('#' + targetTab).addClass('active').show();
             
             // Load logs if switching to logs tab
             if (targetTab === 'logs') {
@@ -180,76 +135,80 @@
         },
 
         /**
-         * Handle preview rules - ENHANCED WITH BETTER ERROR HANDLING
+         * Handle preview rules
          */
         handlePreviewRules: function(e) {
             e.preventDefault();
             
-            console.log('PriceTuneX: Preview rules clicked');
-            
             var formData = this.getFormData();
-            console.log('PriceTuneX: Form data collected', formData);
             
             if (!this.validateForm(formData)) {
-                console.log('PriceTuneX: Form validation failed');
                 return;
             }
             
             this.setButtonLoading('preview-rules', true);
-            this.showLoading(pricetunex_ajax.strings.processing);
-            
-            var ajaxData = {
-                action: 'pricetunex_preview_rules',
-                nonce: pricetunex_ajax.nonce
-            };
-            
-            // Merge form data with AJAX data
-            $.extend(ajaxData, formData);
-            
-            console.log('PriceTuneX: Sending AJAX request', ajaxData);
             
             $.ajax({
                 url: pricetunex_ajax.ajax_url,
                 type: 'POST',
-                data: ajaxData,
-                timeout: 30000, // 30 second timeout
-                success: this.handlePreviewSuccess.bind(this),
-                error: this.handleAjaxError.bind(this),
+                data: {
+                    action: 'pricetunex_preview_rules',
+                    nonce: pricetunex_ajax.nonce,
+                    rule_type: formData.rule_type,
+                    rule_value: formData.rule_value,
+                    target_scope: formData.target_scope,
+                    categories: formData.categories,
+                    tags: formData.tags,
+                    product_types: formData.product_types,
+                    price_min: formData.price_min,
+                    price_max: formData.price_max,
+                    apply_rounding: formData.apply_rounding,
+                    rounding_type: formData.rounding_type
+                },
+                success: function(response) {
+                    if (response.success) {
+                        PriceTuneXAdmin.displayPreview(response.data);
+                        PriceTuneXAdmin.showMessage('Preview generated successfully.', 'success');
+                    } else {
+                        PriceTuneXAdmin.showMessage(response.data || 'Preview failed.', 'error');
+                    }
+                },
+                error: function() {
+                    PriceTuneXAdmin.showMessage('An error occurred while generating preview.', 'error');
+                },
                 complete: function() {
-                    console.log('PriceTuneX: Preview AJAX request completed');
                     PriceTuneXAdmin.setButtonLoading('preview-rules', false);
-                    PriceTuneXAdmin.hideLoading();
                 }
             });
         },
 
         /**
-         * Handle apply rules - ENHANCED WITH BETTER ERROR HANDLING
+         * Handle apply rules - USES MODAL
          */
         handleApplyRules: function(e) {
             e.preventDefault();
-            
-            console.log('PriceTuneX: Apply rules clicked');
             
             var formData = this.getFormData();
             if (!this.validateForm(formData)) {
                 return;
             }
             
-            this.showModal(
-                pricetunex_ajax.strings.confirm_apply,
-                'apply-rules'
-            );
+            // Get the current preview count for a better confirmation message
+            var previewCount = $('#preview-results .count').text();
+            var confirmMessage = 'Are you sure you want to apply these price changes to ' + 
+                               (previewCount || 'the selected') + ' products? This action cannot be undone without using the undo feature.';
+            
+            this.showModal(confirmMessage, 'apply-rules');
         },
 
         /**
-         * Handle undo last changes
+         * Handle undo last changes - USES MODAL
          */
         handleUndoLast: function(e) {
             e.preventDefault();
             
             this.showModal(
-                pricetunex_ajax.strings.confirm_undo,
+                'Are you sure you want to undo the last price changes? This will restore all products to their previous prices.',
                 'undo-changes'
             );
         },
@@ -263,7 +222,7 @@
         },
 
         /**
-         * Handle clear logs
+         * Handle clear logs - USES MODAL
          */
         handleClearLogs: function(e) {
             e.preventDefault();
@@ -275,7 +234,7 @@
         },
 
         /**
-         * Handle modal confirmation
+         * Handle modal confirmation - HANDLES ALL MODAL ACTIONS
          */
         handleModalConfirm: function() {
             var action = $('#pricetunex-modal').data('action');
@@ -292,39 +251,53 @@
                 case 'clear-logs':
                     this.executeClearLogs();
                     break;
+                default:
+                    console.log('Unknown modal action:', action);
+                    break;
             }
         },
 
         /**
-         * Execute apply rules - ENHANCED WITH BETTER ERROR HANDLING
+         * Execute apply rules action
          */
         executeApplyRules: function() {
-            console.log('PriceTuneX: Executing apply rules');
-            
             var formData = this.getFormData();
             
             this.setButtonLoading('apply-rules', true);
-            this.showLoading(pricetunex_ajax.strings.processing);
-            
-            var ajaxData = {
-                action: 'pricetunex_apply_rules',
-                nonce: pricetunex_ajax.nonce
-            };
-            
-            // Merge form data with AJAX data
-            $.extend(ajaxData, formData);
-            
-            console.log('PriceTuneX: Sending apply rules AJAX request', ajaxData);
+            this.showLoading('Applying price changes...');
             
             $.ajax({
                 url: pricetunex_ajax.ajax_url,
                 type: 'POST',
-                data: ajaxData,
-                timeout: 60000, // 60 second timeout for apply
-                success: this.handleApplySuccess.bind(this),
-                error: this.handleAjaxError.bind(this),
+                data: {
+                    action: 'pricetunex_apply_rules',
+                    nonce: pricetunex_ajax.nonce,
+                    rule_type: formData.rule_type,
+                    rule_value: formData.rule_value,
+                    target_scope: formData.target_scope,
+                    categories: formData.categories,
+                    tags: formData.tags,
+                    product_types: formData.product_types,
+                    price_min: formData.price_min,
+                    price_max: formData.price_max,
+                    apply_rounding: formData.apply_rounding,
+                    rounding_type: formData.rounding_type
+                },
+                success: function(response) {
+                    if (response.success) {
+                        PriceTuneXAdmin.showMessage('Successfully updated ' + response.data.products_updated + ' products.', 'success');
+                        PriceTuneXAdmin.clearPreview();
+                        PriceTuneXAdmin.loadLogs();
+                        PriceTuneXAdmin.updateStatistics();
+                        PriceTuneXAdmin.resetForm();
+                    } else {
+                        PriceTuneXAdmin.showMessage(response.data || 'Apply failed.', 'error');
+                    }
+                },
+                error: function() {
+                    PriceTuneXAdmin.showMessage('An error occurred while applying rules.', 'error');
+                },
                 complete: function() {
-                    console.log('PriceTuneX: Apply rules AJAX request completed');
                     PriceTuneXAdmin.setButtonLoading('apply-rules', false);
                     PriceTuneXAdmin.hideLoading();
                 }
@@ -332,11 +305,10 @@
         },
 
         /**
-         * Execute undo changes
+         * Execute undo changes action
          */
         executeUndoChanges: function() {
             this.setButtonLoading('undo-last', true);
-            this.showLoading(pricetunex_ajax.strings.processing);
             
             $.ajax({
                 url: pricetunex_ajax.ajax_url,
@@ -345,21 +317,29 @@
                     action: 'pricetunex_undo_changes',
                     nonce: pricetunex_ajax.nonce
                 },
-                success: this.handleUndoSuccess.bind(this),
-                error: this.handleAjaxError.bind(this),
+                success: function(response) {
+                    if (response.success) {
+                        PriceTuneXAdmin.showMessage('Successfully restored ' + response.data.products_restored + ' products.', 'success');
+                        PriceTuneXAdmin.loadLogs();
+                        PriceTuneXAdmin.updateStatistics();
+                    } else {
+                        PriceTuneXAdmin.showMessage(response.data || 'No changes to undo.', 'error');
+                    }
+                },
+                error: function() {
+                    PriceTuneXAdmin.showMessage('An error occurred while undoing changes.', 'error');
+                },
                 complete: function() {
                     PriceTuneXAdmin.setButtonLoading('undo-last', false);
-                    PriceTuneXAdmin.hideLoading();
                 }
             });
         },
 
         /**
-         * Execute clear logs
+         * Execute clear logs action
          */
         executeClearLogs: function() {
             this.setButtonLoading('clear-logs', true);
-            this.showLoading('Clearing logs...');
             
             $.ajax({
                 url: pricetunex_ajax.ajax_url,
@@ -381,13 +361,12 @@
                 },
                 complete: function() {
                     PriceTuneXAdmin.setButtonLoading('clear-logs', false);
-                    PriceTuneXAdmin.hideLoading();
                 }
             });
         },
 
         /**
-         * Get form data - ENHANCED WITH BETTER VALIDATION
+         * Get form data
          */
         getFormData: function() {
             var data = {};
@@ -412,23 +391,16 @@
             data.apply_rounding = $('#apply_rounding').is(':checked');
             data.rounding_type = $('#rounding_type').val() || '0.99';
             
-            console.log('PriceTuneX: Form data prepared', data);
             return data;
         },
 
         /**
-         * Enhanced form validation with better UX
+         * Form validation
          */
         validateForm: function(data) {
-            console.log('PriceTuneX: Validating form data', data);
-            
-            // Clear previous error highlights
-            $('.form-group').removeClass('error');
-            
             // Check if rule value is provided
             if (!data.rule_value || data.rule_value === 0) {
                 this.showMessage('Please enter a valid adjustment value.', 'error');
-                $('#rule_value').closest('.form-group').addClass('error');
                 $('#rule_value').focus();
                 return false;
             }
@@ -437,7 +409,6 @@
             if (data.rule_type === 'percentage') {
                 if (data.rule_value < -100 || data.rule_value > 1000) {
                     this.showMessage('Percentage must be between -100% and 1000%.', 'error');
-                    $('#rule_value').closest('.form-group').addClass('error');
                     $('#rule_value').focus();
                     return false;
                 }
@@ -446,27 +417,23 @@
             // Check scope-specific validations
             if (data.target_scope === 'categories' && (!data.categories || data.categories.length === 0)) {
                 this.showMessage('Please select at least one category.', 'error');
-                $('#categories').closest('.form-group').addClass('error');
                 $('#categories').focus();
                 return false;
             }
             
             if (data.target_scope === 'tags' && (!data.tags || data.tags.length === 0)) {
                 this.showMessage('Please select at least one tag.', 'error');
-                $('#tags').closest('.form-group').addClass('error');
                 $('#tags').focus();
                 return false;
             }
             
             if (data.target_scope === 'product_types' && (!data.product_types || data.product_types.length === 0)) {
                 this.showMessage('Please select at least one product type.', 'error');
-                $('input[name="product_types[]"]').first().closest('.form-group').addClass('error');
                 return false;
             }
             
             if (data.target_scope === 'price_range' && data.price_min === 0 && data.price_max === 0) {
                 this.showMessage('Please specify a price range.', 'error');
-                $('#price_min').closest('.form-group').addClass('error');
                 $('#price_min').focus();
                 return false;
             }
@@ -475,132 +442,48 @@
             if (data.target_scope === 'price_range' && data.price_min > 0 && data.price_max > 0) {
                 if (data.price_min >= data.price_max) {
                     this.showMessage('Maximum price must be greater than minimum price.', 'error');
-                    $('#price_max').closest('.form-group').addClass('error');
                     $('#price_max').focus();
                     return false;
                 }
             }
             
-            console.log('PriceTuneX: Form validation passed');
             return true;
-        },
-
-        /**
-         * Handle preview success
-         */
-        handlePreviewSuccess: function(response) {
-            console.log('PriceTuneX: Preview success response', response);
-            
-            if (response.success) {
-                this.displayPreview(response.data);
-                this.showMessage('Preview generated successfully.', 'success');
-            } else {
-                this.showMessage(response.data.message || pricetunex_ajax.strings.error, 'error');
-            }
-        },
-
-        /**
-         * Handle apply success
-         */
-        handleApplySuccess: function(response) {
-            console.log('PriceTuneX: Apply success response', response);
-            
-            if (response.success) {
-                this.clearPreview();
-                this.showMessage(
-                    `Successfully updated ${response.data.products_updated} products.`,
-                    'success'
-                );
-                this.updateStatistics();
-                this.loadLogs();
-                this.resetForm();
-            } else {
-                this.showMessage(response.data.message || pricetunex_ajax.strings.error, 'error');
-            }
-        },
-
-        /**
-         * Handle undo success
-         */
-        handleUndoSuccess: function(response) {
-            if (response.success) {
-                this.showMessage(
-                    `Successfully restored ${response.data.products_restored} products.`,
-                    'success'
-                );
-                this.updateStatistics();
-                this.loadLogs();
-            } else {
-                this.showMessage(response.data.message || 'No changes to undo.', 'error');
-            }
-        },
-
-        /**
-         * ENHANCED: Handle AJAX errors with better debugging
-         */
-        handleAjaxError: function(xhr, status, error) {
-            console.error('PriceTuneX: AJAX Error', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText,
-                statusCode: xhr.status
-            });
-            
-            var errorMessage = 'An error occurred. Please try again.';
-            
-            // Try to parse error response
-            if (xhr.responseText) {
-                try {
-                    var errorResponse = JSON.parse(xhr.responseText);
-                    if (errorResponse.data && errorResponse.data.message) {
-                        errorMessage = errorResponse.data.message;
-                    }
-                } catch (e) {
-                    // If it's not JSON, check for common error patterns
-                    if (xhr.responseText.includes('Fatal error')) {
-                        errorMessage = 'A server error occurred. Please check the error logs.';
-                    } else if (xhr.status === 0) {
-                        errorMessage = 'Network connection error. Please check your internet connection.';
-                    } else if (xhr.status === 403) {
-                        errorMessage = 'Access denied. Please refresh the page and try again.';
-                    } else if (xhr.status === 500) {
-                        errorMessage = 'Server error. Please try again or contact support.';
-                    }
-                }
-            }
-            
-            this.showMessage(errorMessage, 'error');
         },
 
         /**
          * Display preview results
          */
         displayPreview: function(data) {
-            if (typeof wp !== 'undefined' && wp.template) {
-                var template = wp.template('preview-template');
-                var html = template(data);
-                $('#preview-results').html(html).addClass('fade-in');
-            } else {
-                // Fallback if wp.template is not available
-                var html = '<div class="preview-summary">';
-                html += '<h4>Products Affected: <span class="count">' + data.count + '</span></h4>';
+            var html = '<div class="preview-summary">';
+            html += '<h4>Products Affected: <span class="count">' + data.products_affected + '</span></h4>';
+            
+            if (data.preview_data && data.preview_data.products && data.preview_data.products.length > 0) {
                 html += '<div class="preview-list">';
                 
-                if (data.products && data.products.length > 0) {
-                    data.products.forEach(function(product) {
-                        html += '<div class="preview-item">';
-                        html += '<strong>' + product.name + '</strong><br>';
-                        html += '<span class="price-change">' + product.old_price + ' → ' + product.new_price;
-                        html += ' <span class="change-amount ' + product.change_type + '">' + product.change_amount + '</span>';
-                        html += '</span></div>';
-                    });
-                } else {
-                    html += '<p>No products found matching the criteria.</p>';
+                // Show preview note if we're showing a limited sample
+                if (data.products_affected > data.preview_data.products.length) {
+                    html += '<p class="preview-note"><em>Showing first ' + data.preview_data.products.length + 
+                           ' products (out of ' + data.products_affected + ' total that will be affected)</em></p>';
                 }
                 
-                html += '</div></div>';
-                $('#preview-results').html(html).addClass('fade-in');
+                data.preview_data.products.forEach(function(product) {
+                    html += '<div class="preview-item">';
+                    html += '<strong>' + product.name + '</strong><br>';
+                    html += '<span class="price-change">';
+                    html += product.old_price + ' → ' + product.new_price;
+                    html += ' <span class="change-amount ' + product.change_type + '">';
+                    html += (product.change_type === 'increase' ? '+' : '-') + product.change_amount;
+                    html += '</span>';
+                    html += '</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            } else {
+                html += '<p>No products found matching the criteria.</p>';
             }
+            
+            html += '</div>';
+            $('#preview-results').html(html).addClass('fade-in');
         },
 
         /**
@@ -614,8 +497,8 @@
          * Load activity logs
          */
         loadLogs: function() {
-            this.setButtonLoading('refresh-logs', true);
-            $('#logs-container').html('<div class="logs-loading"><span class="spinner is-active"></span><p>Loading logs...</p></div>');
+            // Clear existing content and show single loading indicator
+            $('#logs-container').html('<div class="logs-loading"><p>Loading logs...</p></div>');
             
             $.ajax({
                 url: pricetunex_ajax.ajax_url,
@@ -624,25 +507,17 @@
                     action: 'pricetunex_get_logs',
                     nonce: pricetunex_ajax.nonce
                 },
-                success: this.handleLogsSuccess.bind(this),
-                error: function() {
-                    $('#logs-container').html('<p class="text-center">Error loading logs.</p>');
+                success: function(response) {
+                    if (response.success && response.data.logs) {
+                        PriceTuneXAdmin.displayLogs(response.data.logs);
+                    } else {
+                        $('#logs-container').html('<p>No logs found.</p>');
+                    }
                 },
-                complete: function() {
-                    PriceTuneXAdmin.setButtonLoading('refresh-logs', false);
+                error: function() {
+                    $('#logs-container').html('<p>Error loading logs.</p>');
                 }
             });
-        },
-
-        /**
-         * Handle logs success
-         */
-        handleLogsSuccess: function(response) {
-            if (response.success && response.data.logs) {
-                this.displayLogs(response.data.logs);
-            } else {
-                $('#logs-container').html('<p class="text-center">No logs found.</p>');
-            }
         },
 
         /**
@@ -652,37 +527,29 @@
             var html = '';
             
             if (logs.length === 0) {
-                html = '<p class="text-center">No activity logs found.</p>';
+                html = '<p>No activity logs found.</p>';
             } else {
-                if (typeof wp !== 'undefined' && wp.template) {
-                    var template = wp.template('log-template');
-                    logs.forEach(function(log) {
-                        html += template(log);
-                    });
-                } else {
-                    // Fallback if wp.template is not available
-                    logs.forEach(function(log) {
-                        html += '<div class="log-entry">';
-                        html += '<div class="log-header">';
-                        html += '<span class="log-date">' + (log.date || 'Unknown date') + '</span>';
-                        html += '<span class="log-action ' + (log.action_type || '') + '">' + (log.action || 'Unknown action') + '</span>';
-                        html += '</div>';
-                        html += '<div class="log-details">';
-                        html += '<p>' + (log.description || 'No description') + '</p>';
-                        if (log.products_count) {
-                            html += '<span class="products-count">Products affected: ' + log.products_count + '</span>';
-                        }
-                        html += '</div>';
-                        html += '</div>';
-                    });
-                }
+                logs.forEach(function(log) {
+                    html += '<div class="log-entry">';
+                    html += '<div class="log-header">';
+                    html += '<span class="log-date">' + (log.date || 'Unknown date') + '</span>';
+                    html += '<span class="log-action ' + (log.action_type || '') + '">' + (log.action || 'Unknown action') + '</span>';
+                    html += '</div>';
+                    html += '<div class="log-details">';
+                    html += '<p>' + (log.description || 'No description') + '</p>';
+                    if (log.products_count) {
+                        html += '<span class="products-count">Products affected: ' + log.products_count + '</span>';
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                });
             }
             
             $('#logs-container').html(html);
         },
 
         /**
-         * Enhanced update statistics with proper AJAX call
+         * Update statistics display
          */
         updateStatistics: function() {
             $.ajax({
@@ -693,8 +560,6 @@
                     nonce: pricetunex_ajax.nonce
                 },
                 success: function(response) {
-                    console.log('PriceTuneX: Statistics updated', response);
-                    
                     if (response.success && response.data) {
                         $('#total-products').text(response.data.total_products || '-');
                         if (response.data.last_update) {
@@ -707,30 +572,31 @@
                             $('.stat-simple-products').text(stats.simple_products || 0);
                             $('.stat-variable-products').text(stats.variable_products || 0);
                             $('.stat-products-with-price').text(stats.products_with_price || 0);
-                            $('.stat-average-price').text(stats.average_price ? '$' + stats.average_price.toFixed(2) : '-');
+                            if (stats.average_price) {
+                                $('.stat-average-price').text('$' + stats.average_price.toFixed(2));
+                            }
                         }
                     }
                 },
-                error: function(xhr, status, error) {
-                    // Silently fail for stats - non-critical functionality
-                    console.log('PriceTuneX: Failed to load statistics', {status, error});
+                error: function() {
+                    // Silently fail for stats - non-critical
+                    console.log('Failed to load statistics');
                 }
             });
         },
 
         /**
-         * Add loading states to buttons
+         * Set button loading state
          */
         setButtonLoading: function(buttonId, loading) {
             var $button = $('#' + buttonId);
             if (loading) {
                 $button.prop('disabled', true);
-                $button.find('.dashicons').addClass('spin');
-                $button.data('original-text', $button.text());
-                $button.append(' <span class="spinner is-active" style="float: none; margin: 0 0 0 5px;"></span>');
+                if ($button.find('.spinner').length === 0) {
+                    $button.append(' <span class="spinner is-active" style="float: none; margin-left: 5px;"></span>');
+                }
             } else {
                 $button.prop('disabled', false);
-                $button.find('.dashicons').removeClass('spin');
                 $button.find('.spinner').remove();
             }
         },
@@ -739,7 +605,7 @@
          * Show loading overlay
          */
         showLoading: function(message) {
-            $('#loading-message').text(message || pricetunex_ajax.strings.processing);
+            $('#loading-message').text(message || 'Processing...');
             $('#pricetunex-loading').fadeIn(200);
         },
 
@@ -766,7 +632,7 @@
         },
 
         /**
-         * Show message
+         * Show message notification
          */
         showMessage: function(message, type) {
             type = type || 'info';
@@ -794,14 +660,14 @@
         },
 
         /**
-         * Reset form
+         * Reset form to initial state
          */
         resetForm: function() {
             $('#pricetunex-rules-form')[0].reset();
             this.initFormDependencies();
             this.clearPreview();
             
-            // Clear any error states
+            // Clear any validation highlights
             $('.form-group').removeClass('error');
         }
     };
@@ -827,6 +693,13 @@
     });
 
     /**
+     * Handle window resize
+     */
+    $(window).resize(function() {
+        // Add any responsive handling here if needed
+    });
+
+    /**
      * Prevent form submission on enter in number inputs
      */
     $(document).on('keypress', 'input[type="number"]', function(e) {
@@ -836,8 +709,24 @@
     });
 
     /**
+     * Handle clicks outside modal to close
+     */
+    $(document).on('click', '.pricetunex-modal', function(e) {
+        if (e.target === this) {
+            PriceTuneXAdmin.hideModal();
+        }
+    });
+
+    /**
      * Make the admin interface globally accessible for debugging
      */
     window.PriceTuneXAdmin = PriceTuneXAdmin;
+
+    /**
+     * Console log for debugging
+     */
+    if (typeof console !== 'undefined' && console.log) {
+        console.log('PriceTuneX Admin JS loaded successfully - NO CONFIRM() CALLS');
+    }
 
 })(jQuery);

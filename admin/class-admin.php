@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin functionality for PriceTuneX
+ * Admin functionality for PriceTuneX - SIMPLIFIED VERSION
  *
  * @package PriceTuneX
  * @since 1.0.0
@@ -33,34 +33,18 @@ class Pricetunex_Admin {
         // Register admin scripts and styles
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 
-        // Handle AJAX requests - FIXED: Make sure these are properly registered
+        // SIMPLIFIED: Handle AJAX requests
         add_action( 'wp_ajax_pricetunex_apply_rules', array( $this, 'ajax_apply_rules' ) );
         add_action( 'wp_ajax_pricetunex_preview_rules', array( $this, 'ajax_preview_rules' ) );
         add_action( 'wp_ajax_pricetunex_undo_changes', array( $this, 'ajax_undo_changes' ) );
         add_action( 'wp_ajax_pricetunex_get_logs', array( $this, 'ajax_get_logs' ) );
-        add_action( 'wp_ajax_pricetunex_get_stats', array( $this, 'ajax_get_stats' ) );
         add_action( 'wp_ajax_pricetunex_clear_logs', array( $this, 'ajax_clear_logs' ) );
-        add_action( 'wp_ajax_pricetunex_search_products', array( $this, 'ajax_search_products' ) );
 
         // Handle form submissions
         add_action( 'admin_post_pricetunex_save_settings', array( $this, 'handle_save_settings' ) );
 
         // Add admin notices
         add_action( 'admin_notices', array( $this, 'display_admin_notices' ) );
-        
-        // ADDED: Debug logging hook
-        add_action( 'wp_ajax_pricetunex_debug', array( $this, 'ajax_debug' ) );
-    }    
-    
-    /**
-     * ADDED: Debug AJAX handler to test connection
-     */
-    public function ajax_debug() {
-        // Simple debug endpoint
-        wp_send_json_success( array(
-            'message' => 'AJAX connection working',
-            'time' => current_time( 'mysql' )
-        ) );
     }
 
     /**
@@ -79,8 +63,6 @@ class Pricetunex_Admin {
 
     /**
      * Enqueue admin scripts and styles
-     *
-     * @param string $hook The current admin page hook.
      */
     public function enqueue_admin_assets( $hook ) {
         // Only load on our admin page
@@ -100,27 +82,18 @@ class Pricetunex_Admin {
         wp_enqueue_script(
             'pricetunex-admin',
             PRICETUNEX_PLUGIN_URL . 'assets/js/admin.js',
-            array( 'jquery', 'wp-util' ),
+            array( 'jquery' ),
             PRICETUNEX_VERSION,
             true
         );
 
-        // FIXED: Enhanced localization with debug info
+        // SIMPLIFIED: Localization
         wp_localize_script(
             'pricetunex-admin',
             'pricetunex_ajax',
             array(
-                'ajax_url'    => admin_url( 'admin-ajax.php' ),
-                'nonce'       => wp_create_nonce( 'pricetunex_admin_nonce' ),
-                'debug'       => defined( 'WP_DEBUG' ) && WP_DEBUG,
-                'strings'     => array(
-                    'confirm_apply'    => esc_html__( 'Are you sure you want to apply these price changes? This action cannot be undone without using the undo feature.', 'pricetunex' ),
-                    'confirm_undo'     => esc_html__( 'Are you sure you want to undo the last price changes?', 'pricetunex' ),
-                    'processing'       => esc_html__( 'Processing...', 'pricetunex' ),
-                    'error'           => esc_html__( 'An error occurred. Please try again.', 'pricetunex' ),
-                    'success'         => esc_html__( 'Operation completed successfully.', 'pricetunex' ),
-                    'validation_error' => esc_html__( 'Please correct the form errors before proceeding.', 'pricetunex' ),
-                ),
+                'ajax_url' => admin_url( 'admin-ajax.php' ),
+                'nonce'    => wp_create_nonce( 'pricetunex_admin_nonce' ),
             )
         );
     }
@@ -133,9 +106,6 @@ class Pricetunex_Admin {
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'pricetunex' ) );
         }
-
-        // Get current settings
-        $settings = get_option( 'pricetunex_settings', array() );
 
         // Include the admin page template
         include_once PRICETUNEX_PLUGIN_PATH . 'admin/views/settings-page.php';
@@ -179,183 +149,105 @@ class Pricetunex_Admin {
     }
 
     /**
-     * AJAX handler for applying price rules - ENHANCED WITH ERROR HANDLING
+     * SIMPLIFIED: AJAX handler for applying price rules
      */
     public function ajax_apply_rules() {
-        // ADDED: Error logging for debugging
-        error_log( 'PriceTuneX: ajax_apply_rules called' );
-        
+        // Basic security checks
+        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
+
+        // Get and sanitize form data
+        $rule_data = $this->sanitize_rule_data( $_POST );
+
+        // Basic validation
+        if ( empty( $rule_data['rule_value'] ) || ! is_numeric( $rule_data['rule_value'] ) ) {
+            wp_send_json_error( 'Invalid rule value.' );
+        }
+
         try {
-            // Verify nonce
-            if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-                error_log( 'PriceTuneX: Nonce verification failed in ajax_apply_rules' );
-                wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
-            }
-
-            // Check user capabilities
-            if ( ! current_user_can( 'manage_woocommerce' ) ) {
-                error_log( 'PriceTuneX: User capability check failed in ajax_apply_rules' );
-                wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
-            }
-
-            // FIXED: Better error handling for form data
-            if ( empty( $_POST ) ) {
-                error_log( 'PriceTuneX: No POST data received in ajax_apply_rules' );
-                wp_send_json_error( array( 'message' => esc_html__( 'No form data received.', 'pricetunex' ) ) );
-            }
-
-            // Get and sanitize form data
-            $rule_data = $this->sanitize_rule_data( $_POST );
-            error_log( 'PriceTuneX: Rule data sanitized: ' . print_r( $rule_data, true ) );
-
-            // ADDED: Validate rule data before processing
-            $validation_result = $this->validate_rule_data( $rule_data );
-            if ( ! $validation_result['valid'] ) {
-                error_log( 'PriceTuneX: Rule validation failed: ' . $validation_result['message'] );
-                wp_send_json_error( array( 'message' => $validation_result['message'] ) );
-            }
-
             // Initialize price manager
-            if ( ! class_exists( 'Pricetunex_Price_Manager' ) ) {
-                error_log( 'PriceTuneX: Pricetunex_Price_Manager class not found' );
-                wp_send_json_error( array( 'message' => esc_html__( 'Price manager class not found.', 'pricetunex' ) ) );
-            }
-
             $price_manager = new Pricetunex_Price_Manager();
-
+            
             // Apply the rules
             $result = $price_manager->apply_rules( $rule_data );
-            error_log( 'PriceTuneX: Apply rules result: ' . print_r( $result, true ) );
 
             if ( $result['success'] ) {
                 wp_send_json_success( array(
-                    'message'          => esc_html__( 'Price rules applied successfully.', 'pricetunex' ),
+                    'message'          => 'Price rules applied successfully.',
                     'products_updated' => $result['products_updated'],
-                    'changes_made'     => isset( $result['changes_made'] ) ? $result['changes_made'] : array(),
                 ) );
             } else {
-                wp_send_json_error( array( 'message' => $result['message'] ) );
+                wp_send_json_error( $result['message'] );
             }
             
         } catch ( Exception $e ) {
-            error_log( 'PriceTuneX: Exception in ajax_apply_rules: ' . $e->getMessage() );
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while applying rules.', 'pricetunex' ) ) );
+            wp_send_json_error( 'An error occurred while applying rules.' );
         }
     }
 
     /**
-     * AJAX handler for previewing price rules - ENHANCED WITH ERROR HANDLING
+     * SIMPLIFIED: AJAX handler for previewing price rules
      */
     public function ajax_preview_rules() {
-        // ADDED: Error logging for debugging
-        error_log( 'PriceTuneX: ajax_preview_rules called' );
-        
+        // Basic security checks
+        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
+
+        // Get and sanitize form data
+        $rule_data = $this->sanitize_rule_data( $_POST );
+
+        // Basic validation
+        if ( empty( $rule_data['rule_value'] ) || ! is_numeric( $rule_data['rule_value'] ) ) {
+            wp_send_json_error( 'Invalid rule value.' );
+        }
+
+        // DEBUG: Log the rule data to see what we're getting
+        error_log( 'PriceTuneX Preview Rule Data: ' . print_r( $rule_data, true ) );
+
         try {
-            // Verify nonce
-            if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-                error_log( 'PriceTuneX: Nonce verification failed in ajax_preview_rules' );
-                wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
-            }
-
-            // Check user capabilities
-            if ( ! current_user_can( 'manage_woocommerce' ) ) {
-                error_log( 'PriceTuneX: User capability check failed in ajax_preview_rules' );
-                wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
-            }
-
-            // FIXED: Better error handling for form data
-            if ( empty( $_POST ) ) {
-                error_log( 'PriceTuneX: No POST data received in ajax_preview_rules' );
-                wp_send_json_error( array( 'message' => esc_html__( 'No form data received.', 'pricetunex' ) ) );
-            }
-
-            // Get and sanitize form data
-            $rule_data = $this->sanitize_rule_data( $_POST );
-            error_log( 'PriceTuneX: Preview rule data: ' . print_r( $rule_data, true ) );
-
-            // ADDED: Validate rule data before processing
-            $validation_result = $this->validate_rule_data( $rule_data );
-            if ( ! $validation_result['valid'] ) {
-                error_log( 'PriceTuneX: Preview rule validation failed: ' . $validation_result['message'] );
-                wp_send_json_error( array( 'message' => $validation_result['message'] ) );
-            }
-
             // Initialize price manager
-            if ( ! class_exists( 'Pricetunex_Price_Manager' ) ) {
-                error_log( 'PriceTuneX: Pricetunex_Price_Manager class not found' );
-                wp_send_json_error( array( 'message' => esc_html__( 'Price manager class not found.', 'pricetunex' ) ) );
-            }
-
             $price_manager = new Pricetunex_Price_Manager();
-
+            
             // Preview the rules
             $preview = $price_manager->preview_rules( $rule_data );
-            error_log( 'PriceTuneX: Preview result: ' . print_r( $preview, true ) );
 
             if ( $preview['success'] ) {
                 wp_send_json_success( array(
-                    'message'           => esc_html__( 'Preview generated successfully.', 'pricetunex' ),
+                    'message'           => 'Preview generated successfully.',
                     'products_affected' => $preview['products_affected'],
                     'preview_data'      => $preview['preview_data'],
                 ) );
             } else {
-                wp_send_json_error( array( 'message' => $preview['message'] ) );
+                wp_send_json_error( $preview['message'] );
             }
             
         } catch ( Exception $e ) {
-            error_log( 'PriceTuneX: Exception in ajax_preview_rules: ' . $e->getMessage() );
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while generating preview.', 'pricetunex' ) ) );
+            error_log( 'PriceTuneX Preview Error: ' . $e->getMessage() );
+            wp_send_json_error( 'An error occurred while generating preview.' );
         }
     }
 
     /**
-     * ADDED: Validate rule data
-     */
-    private function validate_rule_data( $rule_data ) {
-        // Check if rule value is set and valid
-        if ( ! isset( $rule_data['rule_value'] ) || empty( $rule_data['rule_value'] ) ) {
-            return array(
-                'valid' => false,
-                'message' => esc_html__( 'Adjustment value is required.', 'pricetunex' )
-            );
-        }
-
-        if ( ! is_numeric( $rule_data['rule_value'] ) ) {
-            return array(
-                'valid' => false,
-                'message' => esc_html__( 'Adjustment value must be a number.', 'pricetunex' )
-            );
-        }
-
-        // Validate percentage range
-        if ( isset( $rule_data['rule_type'] ) && 'percentage' === $rule_data['rule_type'] ) {
-            $percentage = floatval( $rule_data['rule_value'] );
-            if ( $percentage < -100 || $percentage > 1000 ) {
-                return array(
-                    'valid' => false,
-                    'message' => esc_html__( 'Percentage must be between -100% and 1000%.', 'pricetunex' )
-                );
-            }
-        }
-
-        return array(
-            'valid' => true,
-            'message' => ''
-        );
-    }
-
-    /**
-     * AJAX handler for undoing last changes
+     * SIMPLIFIED: AJAX handler for undoing last changes
      */
     public function ajax_undo_changes() {
-        // Verify nonce
-        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
+        // Basic security checks
+        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( 'Security check failed.' );
         }
 
-        // Check user capabilities
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
+            wp_send_json_error( 'Insufficient permissions.' );
         }
 
         try {
@@ -367,66 +259,74 @@ class Pricetunex_Admin {
 
             if ( $result['success'] ) {
                 wp_send_json_success( array(
-                    'message'          => esc_html__( 'Last changes undone successfully.', 'pricetunex' ),
+                    'message'           => 'Last changes undone successfully.',
                     'products_restored' => $result['products_restored'],
                 ) );
             } else {
-                wp_send_json_error( array( 'message' => $result['message'] ) );
+                wp_send_json_error( $result['message'] );
             }
         } catch ( Exception $e ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while undoing changes.', 'pricetunex' ) ) );
+            wp_send_json_error( 'An error occurred while undoing changes.' );
         }
     }
 
     /**
-     * AJAX handler for getting logs
+     * SIMPLIFIED: AJAX handler for getting logs
      */
     public function ajax_get_logs() {
-        // Verify nonce
-        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
+        // Basic security checks
+        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( 'Security check failed.' );
         }
 
-        // Check user capabilities
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
+            wp_send_json_error( 'Insufficient permissions.' );
         }
 
-        try {
-            // Get logs
-            $logs = $this->get_activity_logs();
+        // Get logs
+        $logs = get_option( 'pricetunex_activity_logs', array() );
+        
+        // Limit to recent entries
+        $logs = array_slice( $logs, 0, 50 );
 
-            wp_send_json_success( array(
-                'logs' => $logs,
-            ) );
-        } catch ( Exception $e ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while retrieving logs.', 'pricetunex' ) ) );
-        }
+        wp_send_json_success( array(
+            'logs' => $logs,
+        ) );
     }
 
     /**
-     * FIXED: Enhanced sanitize rule data with better error handling
+     * SIMPLIFIED: AJAX handler for clearing logs
+     */
+    public function ajax_clear_logs() {
+        // Basic security checks
+        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+        }
+
+        // Clear activity logs
+        delete_option( 'pricetunex_activity_logs' );
+
+        wp_send_json_success( array(
+            'message' => 'Activity logs cleared successfully.',
+        ) );
+    }
+
+    /**
+     * SIMPLIFIED: Sanitize rule data
      */
     private function sanitize_rule_data( $data ) {
         $sanitized = array();
 
-        // Rule type - with validation
-        $sanitized['rule_type'] = isset( $data['rule_type'] ) ? sanitize_text_field( wp_unslash( $data['rule_type'] ) ) : 'percentage';
-        if ( ! in_array( $sanitized['rule_type'], array( 'percentage', 'fixed' ), true ) ) {
-            $sanitized['rule_type'] = 'percentage';
-        }
+        // Basic fields
+        $sanitized['rule_type'] = sanitize_text_field( wp_unslash( $data['rule_type'] ?? 'percentage' ) );
+        $sanitized['rule_value'] = floatval( $data['rule_value'] ?? 0 );
+        $sanitized['target_scope'] = sanitize_text_field( wp_unslash( $data['target_scope'] ?? 'all' ) );
 
-        // Rule value - ensure it's numeric
-        $rule_value = isset( $data['rule_value'] ) ? $data['rule_value'] : 0;
-        if ( is_string( $rule_value ) ) {
-            $rule_value = wp_unslash( $rule_value );
-        }
-        $sanitized['rule_value'] = is_numeric( $rule_value ) ? floatval( $rule_value ) : 0;
-
-        // Target scope
-        $sanitized['target_scope'] = isset( $data['target_scope'] ) ? sanitize_text_field( wp_unslash( $data['target_scope'] ) ) : 'all';
-
-        // Categories
+        // Categories - FIXED: Handle array properly
         $sanitized['categories'] = array();
         if ( isset( $data['categories'] ) && is_array( $data['categories'] ) ) {
             $sanitized['categories'] = array_map( 'absint', $data['categories'] );
@@ -445,48 +345,14 @@ class Pricetunex_Admin {
         }
 
         // Price range
-        $price_min = isset( $data['price_min'] ) ? $data['price_min'] : 0;
-        $price_max = isset( $data['price_max'] ) ? $data['price_max'] : 0;
-        
-        if ( is_string( $price_min ) ) {
-            $price_min = wp_unslash( $price_min );
-        }
-        if ( is_string( $price_max ) ) {
-            $price_max = wp_unslash( $price_max );
-        }
-        
-        $sanitized['price_min'] = is_numeric( $price_min ) ? floatval( $price_min ) : 0;
-        $sanitized['price_max'] = is_numeric( $price_max ) ? floatval( $price_max ) : 0;
+        $sanitized['price_min'] = floatval( $data['price_min'] ?? 0 );
+        $sanitized['price_max'] = floatval( $data['price_max'] ?? 0 );
 
         // Rounding options
         $sanitized['apply_rounding'] = isset( $data['apply_rounding'] ) ? (bool) $data['apply_rounding'] : false;
-        $sanitized['rounding_type'] = isset( $data['rounding_type'] ) ? sanitize_text_field( wp_unslash( $data['rounding_type'] ) ) : '0.99';
+        $sanitized['rounding_type'] = sanitize_text_field( wp_unslash( $data['rounding_type'] ?? '0.99' ) );
 
         return $sanitized;
-    }
-
-    /**
-     * Get activity logs
-     *
-     * @return array
-     */
-    private function get_activity_logs() {
-        $logs = get_option( 'pricetunex_activity_logs', array() );
-        
-        // Sort by timestamp (newest first)
-        if ( ! empty( $logs ) && is_array( $logs ) ) {
-            usort( $logs, function( $a, $b ) {
-                $timestamp_a = isset( $a['timestamp'] ) ? $a['timestamp'] : 0;
-                $timestamp_b = isset( $b['timestamp'] ) ? $b['timestamp'] : 0;
-                return $timestamp_b - $timestamp_a;
-            });
-        }
-
-        // Limit to recent entries
-        $settings = get_option( 'pricetunex_settings', array() );
-        $max_entries = isset( $settings['max_log_entries'] ) ? (int) $settings['max_log_entries'] : 1000;
-        
-        return array_slice( $logs, 0, $max_entries );
     }
 
     /**
@@ -513,8 +379,6 @@ class Pricetunex_Admin {
 
     /**
      * Get product categories for dropdown
-     *
-     * @return array
      */
     public function get_product_categories() {
         $categories = get_terms( array(
@@ -534,8 +398,6 @@ class Pricetunex_Admin {
 
     /**
      * Get product tags for dropdown
-     *
-     * @return array
      */
     public function get_product_tags() {
         $tags = get_terms( array(
@@ -555,8 +417,6 @@ class Pricetunex_Admin {
 
     /**
      * Get available product types
-     *
-     * @return array
      */
     public function get_product_types() {
         return array(
@@ -564,113 +424,4 @@ class Pricetunex_Admin {
             'variable' => esc_html__( 'Variable', 'pricetunex' ),
         );
     }
-    
-    /**
-     * AJAX handler for getting statistics
-     */
-    public function ajax_get_stats() {
-        // Verify nonce
-        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
-        }
-
-        // Check user capabilities
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
-        }
-
-        try {
-            // Get product statistics
-            $product_query = new Pricetunex_Product_Query();
-            $stats = $product_query->get_product_statistics();
-
-            // Get total eligible products
-            $total_products = $product_query->get_total_products_count();
-
-            // Get last update time
-            $last_update = get_option( 'pricetunex_last_update', 0 );
-            $last_update_formatted = $last_update ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_update ) : esc_html__( 'Never', 'pricetunex' );
-
-            wp_send_json_success( array(
-                'total_products' => $total_products,
-                'last_update'    => $last_update_formatted,
-                'stats'          => $stats,
-            ) );
-
-        } catch ( Exception $e ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while retrieving statistics.', 'pricetunex' ) ) );
-        }
-    }
-
-    /**
-     * AJAX handler for clearing logs
-     */
-    public function ajax_clear_logs() {
-        // Verify nonce
-        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
-        }
-
-        // Check user capabilities
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
-        }
-
-        try {
-            // Clear activity logs
-            delete_option( 'pricetunex_activity_logs' );
-
-            wp_send_json_success( array(
-                'message' => esc_html__( 'Activity logs cleared successfully.', 'pricetunex' ),
-            ) );
-
-        } catch ( Exception $e ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while clearing logs.', 'pricetunex' ) ) );
-        }
-    }
-
-    /**
-     * AJAX handler for product search
-     */
-    public function ajax_search_products() {
-        // Verify nonce
-        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Security check failed.', 'pricetunex' ) ) );
-        }
-
-        // Check user capabilities
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Insufficient permissions.', 'pricetunex' ) ) );
-        }
-
-        $search_term = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-
-        if ( empty( $search_term ) ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'Search term is required.', 'pricetunex' ) ) );
-        }
-
-        try {
-            $product_query = new Pricetunex_Product_Query();
-            $products = $product_query->search_products( $search_term, 20 );
-
-            $formatted_products = array();
-            foreach ( $products as $product_data ) {
-                $product = $product_data['product'];
-                $formatted_products[] = array(
-                    'id'    => $product->get_id(),
-                    'name'  => $product->get_name(),
-                    'sku'   => $product->get_sku(),
-                    'price' => $product->get_regular_price(),
-                    'type'  => $product->get_type(),
-                );
-            }
-
-            wp_send_json_success( array(
-                'products' => $formatted_products,
-            ) );
-
-        } catch ( Exception $e ) {
-            wp_send_json_error( array( 'message' => esc_html__( 'An error occurred while searching products.', 'pricetunex' ) ) );
-        }
-    }    
 }

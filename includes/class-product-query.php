@@ -1,6 +1,6 @@
 <?php
 /**
- * Product Query - Handle product fetching and filtering based on rules
+ * Product Query - Handle product fetching and filtering based on rules - FIXED VERSION
  *
  * @package PriceTuneX
  * @since 1.0.0
@@ -17,21 +17,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Pricetunex_Product_Query {
 
     /**
-     * Get products based on targeting rules
+     * Get products based on targeting rules - FIXED for variable products
      *
      * @param array $rule_data Rule configuration containing target criteria.
      * @return array Array of product data objects.
      */
     public function get_products_by_rules( $rule_data ) {
         try {
+            // DEBUG: Log the incoming rule data
+            error_log( 'PriceTuneX: Getting products with rules: ' . print_r( $rule_data, true ) );
+            
             // Build query arguments based on rules
             $query_args = $this->build_query_args( $rule_data );
+            
+            // DEBUG: Log the query arguments
+            error_log( 'PriceTuneX: Query args: ' . print_r( $query_args, true ) );
             
             // Execute the query
             $products = $this->execute_product_query( $query_args );
             
             // Apply additional filters if needed
             $filtered_products = $this->apply_additional_filters( $products, $rule_data );
+            
+            // DEBUG: Final count
+            error_log( 'PriceTuneX: Final filtered products count: ' . count( $filtered_products ) );
             
             return $filtered_products;
 
@@ -75,7 +84,6 @@ class Pricetunex_Product_Query {
 
             case 'price_range':
                 // Price range will be handled in post-query filtering
-                // because WooCommerce doesn't have built-in price range query
                 break;
 
             case 'all':
@@ -100,6 +108,9 @@ class Pricetunex_Product_Query {
     private function add_category_filters( $args, $rule_data ) {
         if ( ! empty( $rule_data['categories'] ) && is_array( $rule_data['categories'] ) ) {
             $category_ids = array_map( 'absint', $rule_data['categories'] );
+            
+            // DEBUG: Log what categories we're filtering by
+            error_log( 'PriceTuneX: Filtering by category IDs: ' . implode( ', ', $category_ids ) );
             
             // Use tax_query for category filtering
             $args['tax_query'] = array(
@@ -164,7 +175,7 @@ class Pricetunex_Product_Query {
     }
 
     /**
-     * Execute the product query
+     * Execute the product query - FIXED to properly handle variable products
      *
      * @param array $args Query arguments.
      * @return array Array of products.
@@ -174,19 +185,82 @@ class Pricetunex_Product_Query {
         $query = new WC_Product_Query( $args );
         $products = $query->get_products();
 
-        // Convert to our standard format
+        // DEBUG: Log what WooCommerce returned
+        error_log( 'PriceTuneX: WooCommerce returned ' . count( $products ) . ' parent products' );
+
+        // Convert to our standard format and expand variable products
         $product_data = array();
+        $processed_variations = array(); // Track variations to prevent duplicates
         
         foreach ( $products as $product ) {
-            if ( $this->is_product_eligible( $product ) ) {
-                $product_data[] = array(
-                    'product'    => $product,
-                    'product_id' => $product->get_id(),
-                    'type'       => $product->get_type(),
-                    'price'      => $product->get_regular_price(),
-                );
+            if ( ! $this->is_product_eligible( $product ) ) {
+                continue;
+            }
+
+            error_log( 'PriceTuneX: Processing product: ' . $product->get_name() . ' (ID: ' . $product->get_id() . ', Type: ' . $product->get_type() . ')' );
+
+            if ( $product->is_type( 'variable' ) ) {
+                // For variable products, add each variation as a separate entry
+                $variations = $product->get_children();
+                error_log( 'PriceTuneX: Variable product has ' . count( $variations ) . ' variations' );
+                
+                foreach ( $variations as $variation_id ) {
+                    // Check if we've already processed this variation
+                    if ( in_array( $variation_id, $processed_variations ) ) {
+                        error_log( 'PriceTuneX: Skipping duplicate variation ID: ' . $variation_id );
+                        continue;
+                    }
+                    
+                    $variation = wc_get_product( $variation_id );
+                    
+                    if ( $variation && $this->product_has_manageable_price( $variation ) ) {
+                        $product_data[] = array(
+                            'product'    => $variation,
+                            'product_id' => $variation_id,
+                            'parent_id'  => $product->get_id(),
+                            'type'       => 'variation',
+                            'price'      => $variation->get_regular_price(),
+                        );
+                        
+                        // Mark this variation as processed
+                        $processed_variations[] = $variation_id;
+                        error_log( 'PriceTuneX: Added variation: ' . $variation->get_name() . ' (ID: ' . $variation_id . ', Price: ' . $variation->get_regular_price() . ')' );
+                    }
+                }
+            } else {
+                // For simple products, add normally
+                if ( $this->product_has_manageable_price( $product ) ) {
+                    $product_data[] = array(
+                        'product'    => $product,
+                        'product_id' => $product->get_id(),
+                        'type'       => $product->get_type(),
+                        'price'      => $product->get_regular_price(),
+                    );
+                    error_log( 'PriceTuneX: Added simple product: ' . $product->get_name() . ' (ID: ' . $product->get_id() . ', Price: ' . $product->get_regular_price() . ')' );
+                }
             }
         }
+
+        // DEBUG: Final breakdown
+        error_log( 'PriceTuneX: Total variations/products found: ' . count( $product_data ) );
+        error_log( 'PriceTuneX: Processed variations count: ' . count( $processed_variations ) );
+        
+        // Group by parent to see the breakdown
+        $debug_breakdown = array();
+        foreach ( $product_data as $item ) {
+            if ( isset( $item['parent_id'] ) ) {
+                $parent_name = wc_get_product( $item['parent_id'] )->get_name();
+                if ( ! isset( $debug_breakdown[ $parent_name ] ) ) {
+                    $debug_breakdown[ $parent_name ] = 0;
+                }
+                $debug_breakdown[ $parent_name ]++;
+            } else {
+                $product_name = $item['product']->get_name();
+                $debug_breakdown[ $product_name ] = 1;
+            }
+        }
+        
+        error_log( 'PriceTuneX Debug Breakdown: ' . print_r( $debug_breakdown, true ) );
 
         return $product_data;
     }
@@ -205,9 +279,6 @@ class Pricetunex_Product_Query {
         if ( 'price_range' === $target_scope ) {
             $products = $this->filter_by_price_range( $products, $rule_data );
         }
-
-        // Remove products without prices
-        $products = $this->filter_products_with_prices( $products );
 
         return $products;
     }
@@ -231,14 +302,11 @@ class Pricetunex_Product_Query {
         $filtered_products = array();
 
         foreach ( $products as $product_data ) {
-            $product = $product_data['product'];
-            $current_price = $this->get_product_price_for_filtering( $product );
+            $current_price = floatval( $product_data['price'] );
 
             if ( empty( $current_price ) ) {
                 continue;
             }
-
-            $current_price = floatval( $current_price );
 
             // Check min price
             if ( $min_price > 0 && $current_price < $min_price ) {
@@ -251,27 +319,6 @@ class Pricetunex_Product_Query {
             }
 
             $filtered_products[] = $product_data;
-        }
-
-        return $filtered_products;
-    }
-
-    /**
-     * Filter out products without prices
-     *
-     * @param array $products Array of product data.
-     * @return array Filtered products with prices.
-     */
-    private function filter_products_with_prices( $products ) {
-        $filtered_products = array();
-
-        foreach ( $products as $product_data ) {
-            $product = $product_data['product'];
-            
-            // Check if product has a regular price
-            if ( $this->product_has_manageable_price( $product ) ) {
-                $filtered_products[] = $product_data;
-            }
         }
 
         return $filtered_products;
@@ -299,50 +346,19 @@ class Pricetunex_Product_Query {
             return false;
         }
 
-        // Additional checks can be added here
         return true;
     }
 
     /**
-     * Check if product has manageable price
+     * Check if product has manageable price - SIMPLIFIED
      *
      * @param WC_Product $product Product to check.
      * @return bool True if has manageable price.
      */
     private function product_has_manageable_price( $product ) {
-        if ( $product->is_type( 'variable' ) ) {
-            // For variable products, check if any variation has a price
-            $variations = $product->get_children();
-            
-            foreach ( $variations as $variation_id ) {
-                $variation = wc_get_product( $variation_id );
-                if ( $variation && ! empty( $variation->get_regular_price() ) ) {
-                    return true;
-                }
-            }
-            
-            return false;
-        } else {
-            // For simple products, check regular price
-            return ! empty( $product->get_regular_price() );
-        }
-    }
-
-    /**
-     * Get product price for filtering purposes
-     *
-     * @param WC_Product $product Product to get price from.
-     * @return float|string Product price.
-     */
-    private function get_product_price_for_filtering( $product ) {
-        if ( $product->is_type( 'variable' ) ) {
-            // For variable products, use the lowest variation price
-            $min_price = $product->get_variation_price( 'min' );
-            return $min_price;
-        } else {
-            // For simple products, use regular price
-            return $product->get_regular_price();
-        }
+        // Simple check - just see if the product has a regular price
+        $regular_price = $product->get_regular_price();
+        return ! empty( $regular_price ) && is_numeric( $regular_price ) && floatval( $regular_price ) > 0;
     }
 
     /**
@@ -449,110 +465,32 @@ class Pricetunex_Product_Query {
         $query = new WC_Product_Query( $args );
         $product_ids = $query->get_products();
 
-        // Count products with prices
+        // Count products with prices (including variations)
         $count = 0;
         foreach ( $product_ids as $product_id ) {
             $product = wc_get_product( $product_id );
-            if ( $product && $this->product_has_manageable_price( $product ) ) {
-                $count++;
+            if ( ! $product ) {
+                continue;
+            }
+
+            if ( $product->is_type( 'variable' ) ) {
+                // Count variations with prices
+                $variations = $product->get_children();
+                foreach ( $variations as $variation_id ) {
+                    $variation = wc_get_product( $variation_id );
+                    if ( $variation && $this->product_has_manageable_price( $variation ) ) {
+                        $count++;
+                    }
+                }
+            } else {
+                // Count simple products with prices
+                if ( $this->product_has_manageable_price( $product ) ) {
+                    $count++;
+                }
             }
         }
 
         return $count;
-    }
-
-    /**
-     * Get products by specific IDs
-     *
-     * @param array $product_ids Array of product IDs.
-     * @return array Array of product data.
-     */
-    public function get_products_by_ids( $product_ids ) {
-        if ( empty( $product_ids ) || ! is_array( $product_ids ) ) {
-            return array();
-        }
-
-        $product_ids = array_map( 'absint', $product_ids );
-        $product_data = array();
-
-        foreach ( $product_ids as $product_id ) {
-            $product = wc_get_product( $product_id );
-            
-            if ( $product && $this->is_product_eligible( $product ) ) {
-                $product_data[] = array(
-                    'product'    => $product,
-                    'product_id' => $product_id,
-                    'type'       => $product->get_type(),
-                    'price'      => $product->get_regular_price(),
-                );
-            }
-        }
-
-        return $product_data;
-    }
-
-    /**
-     * Search products by name or SKU
-     *
-     * @param string $search_term Search term.
-     * @param int    $limit Maximum number of results.
-     * @return array Array of product data.
-     */
-    public function search_products( $search_term, $limit = 50 ) {
-        if ( empty( $search_term ) ) {
-            return array();
-        }
-
-        $args = array(
-            'status'  => 'publish',
-            'type'    => $this->get_allowed_product_types(),
-            'limit'   => $limit,
-            'orderby' => 'relevance',
-            'order'   => 'DESC',
-            's'       => sanitize_text_field( $search_term ),
-        );
-
-        $query = new WC_Product_Query( $args );
-        $products = $query->get_products();
-
-        $product_data = array();
-
-        foreach ( $products as $product ) {
-            if ( $this->is_product_eligible( $product ) && $this->product_has_manageable_price( $product ) ) {
-                $product_data[] = array(
-                    'product'    => $product,
-                    'product_id' => $product->get_id(),
-                    'type'       => $product->get_type(),
-                    'price'      => $product->get_regular_price(),
-                    'name'       => $product->get_name(),
-                    'sku'        => $product->get_sku(),
-                );
-            }
-        }
-
-        return $product_data;
-    }
-
-    /**
-     * Get products in specific price range for statistics
-     *
-     * @param float $min_price Minimum price.
-     * @param float $max_price Maximum price.
-     * @return array Array with count and sample products.
-     */
-    public function get_products_in_price_range( $min_price = 0, $max_price = 0 ) {
-        $rule_data = array(
-            'target_scope' => 'price_range',
-            'price_min'    => $min_price,
-            'price_max'    => $max_price,
-        );
-
-        $products = $this->get_products_by_rules( $rule_data );
-
-        return array(
-            'count'    => count( $products ),
-            'products' => array_slice( $products, 0, 10 ), // Return first 10 for preview
-        );
     }
 
     /**
@@ -567,12 +505,6 @@ class Pricetunex_Product_Query {
             'variable_products'  => 0,
             'products_with_price' => 0,
             'average_price'      => 0,
-            'price_ranges'       => array(
-                'under_10'   => 0,
-                '10_to_50'   => 0,
-                '50_to_100'  => 0,
-                'over_100'   => 0,
-            ),
         );
 
         // Get all eligible products
@@ -599,31 +531,25 @@ class Pricetunex_Product_Query {
             // Count by type
             if ( $product->is_type( 'simple' ) ) {
                 $stats['simple_products']++;
-            } elseif ( $product->is_type( 'variable' ) ) {
-                $stats['variable_products']++;
-            }
-
-            // Check if has price
-            if ( $this->product_has_manageable_price( $product ) ) {
-                $stats['products_with_price']++;
-
-                // Get price for statistics
-                $price = $this->get_product_price_for_filtering( $product );
                 
-                if ( ! empty( $price ) ) {
-                    $price = floatval( $price );
+                if ( $this->product_has_manageable_price( $product ) ) {
+                    $stats['products_with_price']++;
+                    $price = floatval( $product->get_regular_price() );
                     $total_price += $price;
                     $price_count++;
-
-                    // Categorize by price range
-                    if ( $price < 10 ) {
-                        $stats['price_ranges']['under_10']++;
-                    } elseif ( $price < 50 ) {
-                        $stats['price_ranges']['10_to_50']++;
-                    } elseif ( $price < 100 ) {
-                        $stats['price_ranges']['50_to_100']++;
-                    } else {
-                        $stats['price_ranges']['over_100']++;
+                }
+            } elseif ( $product->is_type( 'variable' ) ) {
+                $stats['variable_products']++;
+                
+                // Count variations
+                $variations = $product->get_children();
+                foreach ( $variations as $variation_id ) {
+                    $variation = wc_get_product( $variation_id );
+                    if ( $variation && $this->product_has_manageable_price( $variation ) ) {
+                        $stats['products_with_price']++;
+                        $price = floatval( $variation->get_regular_price() );
+                        $total_price += $price;
+                        $price_count++;
                     }
                 }
             }
