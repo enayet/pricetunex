@@ -470,10 +470,10 @@ function pricetunex_cleanup_old_logs() {
  * @param mixed  $default Default value.
  * @return mixed
  */
-function pricetunex_get_setting( $key, $default = null ) {
-    $settings = get_option( 'pricetunex_settings', array() );
-    return isset( $settings[ $key ] ) ? $settings[ $key ] : $default;
-}
+//function pricetunex_get_setting( $key, $default = null ) {
+//    $settings = get_option( 'pricetunex_settings', array() );
+//    return isset( $settings[ $key ] ) ? $settings[ $key ] : $default;
+//}
 
 /**
  * Global helper function to update plugin settings
@@ -482,11 +482,11 @@ function pricetunex_get_setting( $key, $default = null ) {
  * @param mixed  $value Setting value.
  * @return bool
  */
-function pricetunex_update_setting( $key, $value ) {
-    $settings = get_option( 'pricetunex_settings', array() );
-    $settings[ $key ] = $value;
-    return update_option( 'pricetunex_settings', $settings );
-}
+//function pricetunex_update_setting( $key, $value ) {
+//    $settings = get_option( 'pricetunex_settings', array() );
+//    $settings[ $key ] = $value;
+//    return update_option( 'pricetunex_settings', $settings );
+//}
 
 /**
  * Check if PriceTuneX is properly loaded
