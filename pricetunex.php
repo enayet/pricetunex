@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'PRICETUNEX_VERSION', '1.1.1' );
+define( 'PRICETUNEX_VERSION', '1.1.3' );
 define( 'PRICETUNEX_PLUGIN_FILE', __FILE__ );
 define( 'PRICETUNEX_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'PRICETUNEX_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );

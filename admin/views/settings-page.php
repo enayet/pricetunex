@@ -144,6 +144,15 @@ $product_types = $this->get_product_types();
                                 <option value="custom"><?php echo esc_html__( 'Custom ending', 'pricetunex' ); ?></option>
                             </select>
                         </div>
+                        
+                        <!-- Custom Ending Field -->
+                        <div class="form-group" id="custom-ending-field" style="display:none;">
+                            <label for="custom_ending"><?php echo esc_html__( 'Custom Ending Value', 'pricetunex' ); ?></label>
+                            <input type="number" id="custom_ending" name="custom_ending" step="0.01" min="0" max="0.99" class="widefat" placeholder="0.89" />
+                            <p class="description">
+                                <?php echo esc_html__( 'Enter a decimal value between 0.00 and 0.99 (e.g., 0.89 for prices ending in .89)', 'pricetunex' ); ?>
+                            </p>
+                        </div>                        
 
                         <!-- Action Buttons -->
                         <div class="form-actions">

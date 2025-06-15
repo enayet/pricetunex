@@ -49,6 +49,8 @@
             // Modal events
             $(document).on('click', '.modal-close, #modal-cancel', this.hideModal.bind(this));
             $(document).on('click', '#modal-confirm', this.handleModalConfirm.bind(this));
+            
+            $(document).on('change', '#rounding_type', this.handleRoundingTypeChange.bind(this));
         },
 
         /**
