@@ -12,8 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Get categories and tags for dropdowns
-$categories = $this->get_product_categories();
-$tags = $this->get_product_tags();
+$categories = $this->get_product_categories(); // Now returns hierarchical with proper IDs
+$tags = $this->get_product_tags(); // Now includes counts
 $product_types = $this->get_product_types();
 ?>
 

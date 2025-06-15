@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin functionality for PriceTuneX - SIMPLIFIED VERSION
+ * Admin functionality for PriceTuneX - COMPLETE FIXED VERSION
  *
  * @package PriceTuneX
  * @since 1.0.0
@@ -33,12 +33,13 @@ class Pricetunex_Admin {
         // Register admin scripts and styles
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 
-        // SIMPLIFIED: Handle AJAX requests
+        // Handle AJAX requests
         add_action( 'wp_ajax_pricetunex_apply_rules', array( $this, 'ajax_apply_rules' ) );
         add_action( 'wp_ajax_pricetunex_preview_rules', array( $this, 'ajax_preview_rules' ) );
         add_action( 'wp_ajax_pricetunex_undo_changes', array( $this, 'ajax_undo_changes' ) );
         add_action( 'wp_ajax_pricetunex_get_logs', array( $this, 'ajax_get_logs' ) );
         add_action( 'wp_ajax_pricetunex_clear_logs', array( $this, 'ajax_clear_logs' ) );
+        add_action( 'wp_ajax_pricetunex_get_stats', array( $this, 'ajax_get_stats' ) );
 
         // Handle form submissions
         add_action( 'admin_post_pricetunex_save_settings', array( $this, 'handle_save_settings' ) );
@@ -87,7 +88,7 @@ class Pricetunex_Admin {
             true
         );
 
-        // SIMPLIFIED: Localization
+        // Localization
         wp_localize_script(
             'pricetunex-admin',
             'pricetunex_ajax',
@@ -149,24 +150,27 @@ class Pricetunex_Admin {
     }
 
     /**
-     * SIMPLIFIED: AJAX handler for applying price rules
+     * AJAX handler for applying price rules
      */
     public function ajax_apply_rules() {
-        // Basic security checks
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( 'Security check failed.' );
+        // Security checks
+        if ( ! $this->verify_ajax_request() ) {
+            return;
         }
 
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( 'Insufficient permissions.' );
-        }
+        // DEBUG: Log all received data
+        error_log( 'PriceTuneX Apply Rules - Raw POST data: ' . print_r( $_POST, true ) );
 
         // Get and sanitize form data
         $rule_data = $this->sanitize_rule_data( $_POST );
 
-        // Basic validation
-        if ( empty( $rule_data['rule_value'] ) || ! is_numeric( $rule_data['rule_value'] ) ) {
-            wp_send_json_error( 'Invalid rule value.' );
+        // DEBUG: Log sanitized data
+        error_log( 'PriceTuneX Apply Rules - Sanitized data: ' . print_r( $rule_data, true ) );
+
+        // Validate rule data
+        $validation = $this->validate_rule_data( $rule_data );
+        if ( ! $validation['valid'] ) {
+            wp_send_json_error( $validation['message'] );
         }
 
         try {
@@ -186,33 +190,28 @@ class Pricetunex_Admin {
             }
             
         } catch ( Exception $e ) {
+            error_log( 'PriceTuneX Apply Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while applying rules.' );
         }
     }
 
     /**
-     * SIMPLIFIED: AJAX handler for previewing price rules
+     * AJAX handler for previewing price rules
      */
     public function ajax_preview_rules() {
-        // Basic security checks
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( 'Security check failed.' );
-        }
-
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( 'Insufficient permissions.' );
+        // Security checks
+        if ( ! $this->verify_ajax_request() ) {
+            return;
         }
 
         // Get and sanitize form data
         $rule_data = $this->sanitize_rule_data( $_POST );
 
-        // Basic validation
-        if ( empty( $rule_data['rule_value'] ) || ! is_numeric( $rule_data['rule_value'] ) ) {
-            wp_send_json_error( 'Invalid rule value.' );
+        // Validate rule data
+        $validation = $this->validate_rule_data( $rule_data );
+        if ( ! $validation['valid'] ) {
+            wp_send_json_error( $validation['message'] );
         }
-
-        // DEBUG: Log the rule data to see what we're getting
-        error_log( 'PriceTuneX Preview Rule Data: ' . print_r( $rule_data, true ) );
 
         try {
             // Initialize price manager
@@ -238,16 +237,12 @@ class Pricetunex_Admin {
     }
 
     /**
-     * SIMPLIFIED: AJAX handler for undoing last changes
+     * AJAX handler for undoing last changes
      */
     public function ajax_undo_changes() {
-        // Basic security checks
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( 'Security check failed.' );
-        }
-
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( 'Insufficient permissions.' );
+        // Security checks
+        if ( ! $this->verify_ajax_request() ) {
+            return;
         }
 
         try {
@@ -266,21 +261,18 @@ class Pricetunex_Admin {
                 wp_send_json_error( $result['message'] );
             }
         } catch ( Exception $e ) {
+            error_log( 'PriceTuneX Undo Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while undoing changes.' );
         }
     }
 
     /**
-     * SIMPLIFIED: AJAX handler for getting logs
+     * AJAX handler for getting logs
      */
     public function ajax_get_logs() {
-        // Basic security checks
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( 'Security check failed.' );
-        }
-
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( 'Insufficient permissions.' );
+        // Security checks
+        if ( ! $this->verify_ajax_request() ) {
+            return;
         }
 
         // Get logs
@@ -295,16 +287,12 @@ class Pricetunex_Admin {
     }
 
     /**
-     * SIMPLIFIED: AJAX handler for clearing logs
+     * AJAX handler for clearing logs
      */
     public function ajax_clear_logs() {
-        // Basic security checks
-        if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'pricetunex_admin_nonce' ) ) {
-            wp_send_json_error( 'Security check failed.' );
-        }
-
-        if ( ! current_user_can( 'manage_woocommerce' ) ) {
-            wp_send_json_error( 'Insufficient permissions.' );
+        // Security checks
+        if ( ! $this->verify_ajax_request() ) {
+            return;
         }
 
         // Clear activity logs
@@ -316,43 +304,192 @@ class Pricetunex_Admin {
     }
 
     /**
-     * SIMPLIFIED: Sanitize rule data
+     * AJAX handler for getting statistics
+     */
+    public function ajax_get_stats() {
+        // Security checks
+        if ( ! $this->verify_ajax_request() ) {
+            return;
+        }
+
+        try {
+            // Get basic statistics
+            $product_query = new Pricetunex_Product_Query();
+            $total_products = $product_query->get_total_products_count();
+            
+            $last_update = get_option( 'pricetunex_last_update', 0 );
+            $last_update_formatted = $last_update ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_update ) : esc_html__( 'Never', 'pricetunex' );
+
+            wp_send_json_success( array(
+                'total_products' => $total_products,
+                'last_update'    => $last_update_formatted,
+            ) );
+
+        } catch ( Exception $e ) {
+            error_log( 'PriceTuneX Stats Error: ' . $e->getMessage() );
+            wp_send_json_error( 'Failed to load statistics.' );
+        }
+    }
+
+    /**
+     * Verify AJAX request security
+     */
+    private function verify_ajax_request() {
+        // Check nonce
+        if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'pricetunex_admin_nonce' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+            return false;
+        }
+
+        // Check user capabilities
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( 'Insufficient permissions.' );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Sanitize and validate rule data - FIXED VERSION
      */
     private function sanitize_rule_data( $data ) {
         $sanitized = array();
 
         // Basic fields
-        $sanitized['rule_type'] = sanitize_text_field( wp_unslash( $data['rule_type'] ?? 'percentage' ) );
-        $sanitized['rule_value'] = floatval( $data['rule_value'] ?? 0 );
-        $sanitized['target_scope'] = sanitize_text_field( wp_unslash( $data['target_scope'] ?? 'all' ) );
+        $sanitized['rule_type'] = isset( $data['rule_type'] ) ? sanitize_text_field( wp_unslash( $data['rule_type'] ) ) : 'percentage';
+        $sanitized['rule_value'] = isset( $data['rule_value'] ) ? floatval( $data['rule_value'] ) : 0;
+        $sanitized['target_scope'] = isset( $data['target_scope'] ) ? sanitize_text_field( wp_unslash( $data['target_scope'] ) ) : 'all';
 
-        // Categories - FIXED: Handle array properly
+        // Categories - FIXED: Properly handle array and convert to integers
         $sanitized['categories'] = array();
-        if ( isset( $data['categories'] ) && is_array( $data['categories'] ) ) {
-            $sanitized['categories'] = array_map( 'absint', $data['categories'] );
+        if ( isset( $data['categories'] ) ) {
+            if ( is_array( $data['categories'] ) ) {
+                // Array of category IDs
+                $sanitized['categories'] = array_map( 'absint', $data['categories'] );
+                $sanitized['categories'] = array_filter( $sanitized['categories'] ); // Remove zeros
+            } elseif ( is_string( $data['categories'] ) && ! empty( $data['categories'] ) ) {
+                // Single category ID as string
+                $category_id = absint( $data['categories'] );
+                if ( $category_id > 0 ) {
+                    $sanitized['categories'] = array( $category_id );
+                }
+            }
         }
 
-        // Tags
+        // Tags - FIXED: Same treatment as categories
         $sanitized['tags'] = array();
-        if ( isset( $data['tags'] ) && is_array( $data['tags'] ) ) {
-            $sanitized['tags'] = array_map( 'absint', $data['tags'] );
+        if ( isset( $data['tags'] ) ) {
+            if ( is_array( $data['tags'] ) ) {
+                $sanitized['tags'] = array_map( 'absint', $data['tags'] );
+                $sanitized['tags'] = array_filter( $sanitized['tags'] );
+            } elseif ( is_string( $data['tags'] ) && ! empty( $data['tags'] ) ) {
+                $tag_id = absint( $data['tags'] );
+                if ( $tag_id > 0 ) {
+                    $sanitized['tags'] = array( $tag_id );
+                }
+            }
         }
 
         // Product types
         $sanitized['product_types'] = array();
         if ( isset( $data['product_types'] ) && is_array( $data['product_types'] ) ) {
-            $sanitized['product_types'] = array_map( 'sanitize_text_field', array_map( 'wp_unslash', $data['product_types'] ) );
+            $valid_types = array( 'simple', 'variable', 'external', 'grouped' );
+            foreach ( $data['product_types'] as $type ) {
+                $clean_type = sanitize_text_field( wp_unslash( $type ) );
+                if ( in_array( $clean_type, $valid_types, true ) ) {
+                    $sanitized['product_types'][] = $clean_type;
+                }
+            }
         }
 
         // Price range
-        $sanitized['price_min'] = floatval( $data['price_min'] ?? 0 );
-        $sanitized['price_max'] = floatval( $data['price_max'] ?? 0 );
+        $sanitized['price_min'] = isset( $data['price_min'] ) ? floatval( $data['price_min'] ) : 0;
+        $sanitized['price_max'] = isset( $data['price_max'] ) ? floatval( $data['price_max'] ) : 0;
 
         // Rounding options
-        $sanitized['apply_rounding'] = isset( $data['apply_rounding'] ) ? (bool) $data['apply_rounding'] : false;
-        $sanitized['rounding_type'] = sanitize_text_field( wp_unslash( $data['rounding_type'] ?? '0.99' ) );
+        $sanitized['apply_rounding'] = isset( $data['apply_rounding'] ) && ! empty( $data['apply_rounding'] );
+        $sanitized['rounding_type'] = isset( $data['rounding_type'] ) ? sanitize_text_field( wp_unslash( $data['rounding_type'] ) ) : '0.99';
+
+        // DEBUG: Log the final sanitized data
+        error_log( 'PriceTuneX: Final sanitized rule data: ' . print_r( $sanitized, true ) );
 
         return $sanitized;
+    }
+
+    /**
+     * Validate rule data
+     */
+    private function validate_rule_data( $rule_data ) {
+        // Check if rule value is set and valid
+        if ( ! isset( $rule_data['rule_value'] ) || ! is_numeric( $rule_data['rule_value'] ) || 0 === floatval( $rule_data['rule_value'] ) ) {
+            return array(
+                'valid'   => false,
+                'message' => esc_html__( 'Please enter a valid adjustment value (cannot be zero).', 'pricetunex' ),
+            );
+        }
+
+        // Validate percentage range
+        if ( 'percentage' === $rule_data['rule_type'] ) {
+            $percentage = floatval( $rule_data['rule_value'] );
+            if ( $percentage < -100 || $percentage > 1000 ) {
+                return array(
+                    'valid'   => false,
+                    'message' => esc_html__( 'Percentage must be between -100% and 1000%.', 'pricetunex' ),
+                );
+            }
+        }
+
+        // Validate target scope specific requirements
+        $target_scope = $rule_data['target_scope'];
+        
+        if ( 'categories' === $target_scope ) {
+            if ( empty( $rule_data['categories'] ) || ! is_array( $rule_data['categories'] ) ) {
+                return array(
+                    'valid'   => false,
+                    'message' => esc_html__( 'Please select at least one category.', 'pricetunex' ),
+                );
+            }
+        }
+        
+        if ( 'tags' === $target_scope ) {
+            if ( empty( $rule_data['tags'] ) || ! is_array( $rule_data['tags'] ) ) {
+                return array(
+                    'valid'   => false,
+                    'message' => esc_html__( 'Please select at least one tag.', 'pricetunex' ),
+                );
+            }
+        }
+        
+        if ( 'product_types' === $target_scope ) {
+            if ( empty( $rule_data['product_types'] ) || ! is_array( $rule_data['product_types'] ) ) {
+                return array(
+                    'valid'   => false,
+                    'message' => esc_html__( 'Please select at least one product type.', 'pricetunex' ),
+                );
+            }
+        }
+
+        if ( 'price_range' === $target_scope ) {
+            if ( 0 === $rule_data['price_min'] && 0 === $rule_data['price_max'] ) {
+                return array(
+                    'valid'   => false,
+                    'message' => esc_html__( 'Please specify a price range (minimum and/or maximum price).', 'pricetunex' ),
+                );
+            }
+            
+            if ( $rule_data['price_min'] > 0 && $rule_data['price_max'] > 0 && $rule_data['price_min'] >= $rule_data['price_max'] ) {
+                return array(
+                    'valid'   => false,
+                    'message' => esc_html__( 'Maximum price must be greater than minimum price.', 'pricetunex' ),
+                );
+            }
+        }
+
+        return array(
+            'valid'   => true,
+            'message' => '',
+        );
     }
 
     /**
@@ -378,37 +515,90 @@ class Pricetunex_Admin {
     }
 
     /**
-     * Get product categories for dropdown
+     * Get product categories for dropdown - PROPER HIERARCHY WITH PRESERVED IDS
      */
     public function get_product_categories() {
         $categories = get_terms( array(
             'taxonomy'   => 'product_cat',
             'hide_empty' => false,
+            'orderby'    => 'name',
+            'order'      => 'ASC',
         ) );
 
         $options = array();
         if ( ! is_wp_error( $categories ) ) {
-            foreach ( $categories as $category ) {
-                $options[ $category->term_id ] = $category->name;
-            }
+            // Build hierarchical structure
+            $hierarchy = $this->build_category_hierarchy( $categories );
+            $options = $this->flatten_category_hierarchy_fixed( $hierarchy );
         }
 
         return $options;
     }
 
     /**
-     * Get product tags for dropdown
+     * FIXED: Flatten category hierarchy but preserve actual term IDs
+     * The key issue was using array_merge() which reindexes arrays
+     */
+    private function flatten_category_hierarchy_fixed( $categories, $depth = 0 ) {
+        $options = array();
+        
+        foreach ( $categories as $category ) {
+            // Create indentation for child categories
+            $indent = str_repeat( '— ', $depth );
+            $display_name = $indent . $category->name . ' (' . $category->count . ')';
+            
+            // CRITICAL: Use actual term_id as key
+            $options[ $category->term_id ] = $display_name;
+            
+            // Add children recursively
+            if ( isset( $category->children ) ) {
+                $child_options = $this->flatten_category_hierarchy_fixed( $category->children, $depth + 1 );
+                
+                // FIXED: Use + operator instead of array_merge to preserve keys
+                $options = $options + $child_options;
+            }
+        }
+        
+        return $options;
+    }
+
+
+
+    /**
+     * Build category hierarchy from flat terms array
+     */
+    private function build_category_hierarchy( $categories, $parent_id = 0 ) {
+        $branch = array();
+        
+        foreach ( $categories as $category ) {
+            if ( $category->parent == $parent_id ) {
+                $children = $this->build_category_hierarchy( $categories, $category->term_id );
+                if ( $children ) {
+                    $category->children = $children;
+                }
+                $branch[] = $category;
+            }
+        }
+        
+        return $branch;
+    }
+
+
+    /**
+     * Get product tags for dropdown - SIMPLE WORKING VERSION  
      */
     public function get_product_tags() {
         $tags = get_terms( array(
             'taxonomy'   => 'product_tag',
             'hide_empty' => false,
+            'orderby'    => 'name',
+            'order'      => 'ASC',
         ) );
 
         $options = array();
         if ( ! is_wp_error( $tags ) ) {
             foreach ( $tags as $tag ) {
-                $options[ $tag->term_id ] = $tag->name;
+                $options[ $tag->term_id ] = $tag->name . ' (' . $tag->count . ')';
             }
         }
 
