@@ -1,5 +1,5 @@
 /**
- * PriceTuneX Admin JavaScript - CLEAN VERSION (NO CONFIRM CALLS)
+ * PriceTuneX Admin JavaScript - FIXED VERSION
  */
 (function($) {
     'use strict';
@@ -38,6 +38,7 @@
             $(document).on('change', '#rule_type', this.handleRuleTypeChange.bind(this));
             $(document).on('change', '#target_scope', this.handleTargetScopeChange.bind(this));
             $(document).on('change', '#apply_rounding', this.handleRoundingToggle.bind(this));
+            $(document).on('change', '#rounding_type', this.handleRoundingTypeChange.bind(this));
             
             // Button clicks
             $(document).on('click', '#preview-rules', this.handlePreviewRules.bind(this));
@@ -49,8 +50,6 @@
             // Modal events
             $(document).on('click', '.modal-close, #modal-cancel', this.hideModal.bind(this));
             $(document).on('click', '#modal-confirm', this.handleModalConfirm.bind(this));
-            
-            $(document).on('change', '#rounding_type', this.handleRoundingTypeChange.bind(this));
         },
 
         /**
@@ -91,6 +90,7 @@
             this.handleRuleTypeChange();
             this.handleTargetScopeChange();
             this.handleRoundingToggle();
+            this.handleRoundingTypeChange();
         },
 
         /**
@@ -123,7 +123,6 @@
             }
         },
 
-        
         /**
          * Handle rounding toggle
          */
@@ -140,7 +139,6 @@
             }
         },        
         
-        
         /**
          * Handle rounding type change
          */
@@ -153,7 +151,6 @@
                 $('#custom-ending-field').hide();
             }
         },        
-        
 
         /**
          * Handle preview rules
@@ -184,7 +181,8 @@
                     price_min: formData.price_min,
                     price_max: formData.price_max,
                     apply_rounding: formData.apply_rounding,
-                    rounding_type: formData.rounding_type
+                    rounding_type: formData.rounding_type,
+                    custom_ending: formData.custom_ending  // FIXED: Added missing field
                 },
                 success: function(response) {
                     if (response.success) {
@@ -302,7 +300,8 @@
                     price_min: formData.price_min,
                     price_max: formData.price_max,
                     apply_rounding: formData.apply_rounding,
-                    rounding_type: formData.rounding_type
+                    rounding_type: formData.rounding_type,
+                    custom_ending: formData.custom_ending  // FIXED: Added missing field
                 },
                 success: function(response) {
                     if (response.success) {
@@ -387,7 +386,7 @@
         },
 
         /**
-         * Get form data
+         * Get form data - FIXED VERSION
          */
         getFormData: function() {
             var data = {};
@@ -408,15 +407,19 @@
             data.price_min = parseFloat($('#price_min').val()) || 0;
             data.price_max = parseFloat($('#price_max').val()) || 0;
             
-            // Rounding options
+            // Rounding options - FIXED: Added missing custom_ending field
             data.apply_rounding = $('#apply_rounding').is(':checked');
             data.rounding_type = $('#rounding_type').val() || '0.99';
+            data.custom_ending = parseFloat($('#custom_ending').val()) || 0;
+            
+            // Debug log the form data
+            console.log('PriceTuneX getFormData:', data);
             
             return data;
         },
 
         /**
-         * Form validation
+         * Form validation - ENHANCED to include custom ending validation
          */
         validateForm: function(data) {
             // Check if rule value is provided
@@ -464,6 +467,15 @@
                 if (data.price_min >= data.price_max) {
                     this.showMessage('Maximum price must be greater than minimum price.', 'error');
                     $('#price_max').focus();
+                    return false;
+                }
+            }
+            
+            // ADDED: Validate custom ending value
+            if (data.apply_rounding && data.rounding_type === 'custom') {
+                if (data.custom_ending < 0 || data.custom_ending >= 1) {
+                    this.showMessage('Custom ending must be between 0.00 and 0.99.', 'error');
+                    $('#custom_ending').focus();
                     return false;
                 }
             }
@@ -747,7 +759,7 @@
      * Console log for debugging
      */
     if (typeof console !== 'undefined' && console.log) {
-        console.log('PriceTuneX Admin JS loaded successfully - NO CONFIRM() CALLS');
+        console.log('PriceTuneX Admin JS loaded successfully - FIXED CUSTOM ENDING');
     }
 
 })(jQuery);
