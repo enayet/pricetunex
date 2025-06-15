@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin functionality for PriceTuneX - COMPLETE FIXED VERSION
+ * Admin functionality for PriceTuneX - UPDATED WITH TARGET PRICE TYPE SUPPORT
  *
  * @package PriceTuneX
  * @since 1.0.0
@@ -150,7 +150,7 @@ class Pricetunex_Admin {
     }
 
     /**
-     * AJAX handler for applying price rules
+     * AJAX handler for applying price rules - UPDATED WITH TARGET PRICE TYPE
      */
     public function ajax_apply_rules() {
         // Security checks
@@ -196,7 +196,7 @@ class Pricetunex_Admin {
     }
 
     /**
-     * AJAX handler for previewing price rules
+     * AJAX handler for previewing price rules - UPDATED WITH TARGET PRICE TYPE
      */
     public function ajax_preview_rules() {
         // Security checks
@@ -351,7 +351,7 @@ class Pricetunex_Admin {
     }
 
     /**
-     * Sanitize and validate rule data - FIXED VERSION
+     * Sanitize and validate rule data - UPDATED WITH TARGET PRICE TYPE
      */
     private function sanitize_rule_data( $data ) {
         $sanitized = array();
@@ -359,6 +359,10 @@ class Pricetunex_Admin {
         // Basic fields
         $sanitized['rule_type'] = isset( $data['rule_type'] ) ? sanitize_text_field( wp_unslash( $data['rule_type'] ) ) : 'percentage';
         $sanitized['rule_value'] = isset( $data['rule_value'] ) ? floatval( $data['rule_value'] ) : 0;
+        
+        // NEW: Target price type
+        $sanitized['target_price_type'] = isset( $data['target_price_type'] ) ? sanitize_text_field( wp_unslash( $data['target_price_type'] ) ) : 'smart';
+        
         $sanitized['target_scope'] = isset( $data['target_scope'] ) ? sanitize_text_field( wp_unslash( $data['target_scope'] ) ) : 'all';
 
         // Categories - FIXED: Properly handle array and convert to integers
@@ -420,7 +424,7 @@ class Pricetunex_Admin {
     }
 
     /**
-     * Validate rule data
+     * Validate rule data - UPDATED WITH TARGET PRICE TYPE VALIDATION
      */
     private function validate_rule_data( $rule_data ) {
         // Check if rule value is set and valid
@@ -440,6 +444,15 @@ class Pricetunex_Admin {
                     'message' => esc_html__( 'Percentage must be between -100% and 1000%.', 'pricetunex' ),
                 );
             }
+        }
+
+        // NEW: Validate target price type
+        $valid_price_types = array( 'smart', 'regular_only', 'sale_only', 'both_prices' );
+        if ( ! isset( $rule_data['target_price_type'] ) || ! in_array( $rule_data['target_price_type'], $valid_price_types, true ) ) {
+            return array(
+                'valid'   => false,
+                'message' => esc_html__( 'Invalid target price type selected.', 'pricetunex' ),
+            );
         }
 
         // Validate target scope specific requirements
@@ -564,8 +577,6 @@ class Pricetunex_Admin {
         return $options;
     }
 
-
-
     /**
      * Build category hierarchy from flat terms array
      */
@@ -584,7 +595,6 @@ class Pricetunex_Admin {
         
         return $branch;
     }
-
 
     /**
      * Get product tags for dropdown - SIMPLE WORKING VERSION  

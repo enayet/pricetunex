@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin settings page template
+ * Admin settings page template - UPDATED WITH TARGET PRICE TYPE
  *
  * @package PriceTuneX
  * @since 1.0.0
@@ -64,6 +64,20 @@ $product_types = $this->get_product_types();
                             <p class="description">
                                 <span class="percentage-desc"><?php echo esc_html__( 'Enter percentage (e.g., 10 for +10%, -5 for -5%).', 'pricetunex' ); ?></span>
                                 <span class="fixed-desc" style="display:none;"><?php echo esc_html__( 'Enter amount (e.g., 5 for +$5, -2 for -$2).', 'pricetunex' ); ?></span>
+                            </p>
+                        </div>
+
+                        <!-- NEW: Target Price Type -->
+                        <div class="form-group">
+                            <label for="target_price_type"><?php echo esc_html__( 'Target Price Type', 'pricetunex' ); ?></label>
+                            <select id="target_price_type" name="target_price_type" class="widefat">
+                                <option value="smart"><?php echo esc_html__( 'Smart Selection (Recommended)', 'pricetunex' ); ?></option>
+                                <option value="regular_only"><?php echo esc_html__( 'Regular Price Only', 'pricetunex' ); ?></option>
+                                <option value="sale_only"><?php echo esc_html__( 'Sale Price Only', 'pricetunex' ); ?></option>
+                                <option value="both_prices"><?php echo esc_html__( 'Both Regular & Sale Prices', 'pricetunex' ); ?></option>
+                            </select>
+                            <p class="description" id="target-price-description">
+                                <?php echo esc_html__( 'Updates the price customers actually see (sale price if active, otherwise regular price).', 'pricetunex' ); ?>
                             </p>
                         </div>
 
@@ -263,28 +277,6 @@ $product_types = $this->get_product_types();
                                     </fieldset>
                                 </td>
                             </tr>
-
-<!--
-                            <tr>
-                                <th scope="row"><?php echo esc_html__( 'Default Rounding', 'pricetunex' ); ?></th>
-                                <td>
-                                    <select name="default_rounding" class="regular-text">
-                                        <option value="0.99" <?php selected( pricetunex_get_setting( 'default_rounding', '0.99' ), '0.99' ); ?>>
-                                            <?php echo esc_html__( 'End in .99', 'pricetunex' ); ?>
-                                        </option>
-                                        <option value="0.95" <?php selected( pricetunex_get_setting( 'default_rounding', '0.99' ), '0.95' ); ?>>
-                                            <?php echo esc_html__( 'End in .95', 'pricetunex' ); ?>
-                                        </option>
-                                        <option value="0.00" <?php selected( pricetunex_get_setting( 'default_rounding', '0.99' ), '0.00' ); ?>>
-                                            <?php echo esc_html__( 'Whole numbers', 'pricetunex' ); ?>
-                                        </option>
-                                    </select>
-                                    <p class="description">
-                                        <?php echo esc_html__( 'Default rounding option when psychological pricing is enabled.', 'pricetunex' ); ?>
-                                    </p>
-                                </td>
-                            </tr>
--->
                         </tbody>
                     </table>
 
@@ -384,10 +376,40 @@ $product_types = $this->get_product_types();
             <# _.each(data.products, function(product) { #>
                 <div class="preview-item">
                     <strong>{{ product.name }}</strong><br>
-                    <span class="price-change">
-                        {{ product.old_price }} → {{ product.new_price }}
-                        <span class="change-amount {{ product.change_type }}">{{ product.change_amount }}</span>
-                    </span>
+                    
+                    <# if (product.is_both_prices) { #>
+                        <!-- Both Prices Mode - Show detailed breakdown -->
+                        <div class="both-prices-preview">
+                            <div class="price-line">
+                                <span class="price-label">Regular:</span>
+                                <span class="price-change">
+                                    {{ product.regular_price.old }} → {{ product.regular_price.new }}
+                                    <span class="change-amount {{ product.regular_price.change_type }}">{{ product.regular_price.change_amount }}</span>
+                                </span>
+                            </div>
+                            <# if (product.sale_price) { #>
+                                <div class="price-line">
+                                    <span class="price-label">Sale:</span>
+                                    <span class="price-change">
+                                        {{ product.sale_price.old }} → {{ product.sale_price.new }}
+                                        <span class="change-amount {{ product.sale_price.change_type }}">{{ product.sale_price.change_amount }}</span>
+                                    </span>
+                                </div>
+                            <# } #>
+                        </div>
+                    <# } else { #>
+                        <!-- Single Price Mode -->
+                        <span class="price-change">
+                            {{ product.old_price }} → {{ product.new_price }}
+                            <span class="change-amount {{ product.change_type }}">{{ product.change_amount }}</span>
+                        </span>
+                    <# } #>
+                    
+                    <# if (product.price_type_updated) { #>
+                        <div class="price-type-label">
+                            <small><em>{{ product.price_type_updated }}</em></small>
+                        </div>
+                    <# } #>
                 </div>
             <# }); #>
         </div>

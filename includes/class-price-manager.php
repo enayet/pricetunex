@@ -1,6 +1,6 @@
 <?php
 /**
- * Price Manager - Core logic for price calculations and adjustments - COMPLETE VERSION
+ * Price Manager - Core logic for price calculations and adjustments - UPDATED WITH TARGET PRICE TYPE
  *
  * @package PriceTuneX
  * @since 1.0.0
@@ -31,7 +31,7 @@ class Pricetunex_Price_Manager {
     }
 
     /**
-     * Apply price rules to products - SIMPLIFIED AND FIXED
+     * Apply price rules to products - UPDATED WITH TARGET PRICE TYPE
      *
      * @param array $rule_data Rule configuration.
      * @return array Result array with success status and details.
@@ -90,115 +90,7 @@ class Pricetunex_Price_Manager {
     }
 
     /**
-     * Preview price rules without applying changes
-     *
-     * @param array $rule_data Rule configuration.
-     * @return array Preview result with affected products.
-     */
-    public function preview_rules( $rule_data ) {
-        try {
-            // Get products based on rules
-            $products = $this->product_query->get_products_by_rules( $rule_data );
-            
-            if ( empty( $products ) ) {
-                return array(
-                    'success' => false,
-                    'message' => esc_html__( 'No products found matching the specified criteria.', 'pricetunex' ),
-                );
-            }
-
-            // Generate preview data (limit to first 10 for performance)
-            $preview_products = array_slice( $products, 0, 10 );
-            $preview_data = array();
-
-            foreach ( $preview_products as $product_data ) {
-                $product = $product_data['product'];
-                $preview_item = $this->calculate_price_preview( $product, $rule_data );
-                
-                if ( $preview_item ) {
-                    $preview_data[] = $preview_item;
-                }
-            }
-
-            return array(
-                'success'            => true,
-                'products_affected'  => count( $products ),
-                'preview_data'       => array(
-                    'count'    => count( $products ),
-                    'products' => $preview_data,
-                ),
-                'message'            => sprintf(
-                    /* translators: %d: Number of products that would be affected */
-                    esc_html__( 'Preview shows %d products would be affected.', 'pricetunex' ),
-                    count( $products )
-                ),
-            );
-
-        } catch ( Exception $e ) {
-            return array(
-                'success' => false,
-                'message' => esc_html__( 'An error occurred while generating preview.', 'pricetunex' ),
-            );
-        }
-    }
-
-    /**
-     * Undo the last price changes
-     *
-     * @return array Result array with success status.
-     */
-    public function undo_last_changes() {
-        try {
-            // Get backup data
-            $backup_data = get_option( 'pricetunex_price_backup', array() );
-            
-            if ( empty( $backup_data ) ) {
-                return array(
-                    'success' => false,
-                    'message' => esc_html__( 'No backup data found. Cannot undo changes.', 'pricetunex' ),
-                );
-            }
-
-            $products_restored = 0;
-
-            foreach ( $backup_data as $product_id => $backup_info ) {
-                $product = wc_get_product( $product_id );
-                
-                if ( ! $product ) {
-                    continue;
-                }
-
-                // Restore prices
-                $this->restore_product_price( $product, $backup_info );
-                $products_restored++;
-            }
-
-            // Clear backup data after successful restore
-            delete_option( 'pricetunex_price_backup' );
-
-            // Log the undo action
-            $this->log_price_action( 'undo', array(), $products_restored );
-
-            return array(
-                'success'           => true,
-                'products_restored' => $products_restored,
-                'message'           => sprintf(
-                    /* translators: %d: Number of products restored */
-                    esc_html__( 'Successfully restored prices for %d products.', 'pricetunex' ),
-                    $products_restored
-                ),
-            );
-
-        } catch ( Exception $e ) {
-            return array(
-                'success' => false,
-                'message' => esc_html__( 'An error occurred while undoing changes.', 'pricetunex' ),
-            );
-        }
-    }
-
-    /**
-     * SIMPLIFIED: Apply price change to a single product
+     * UPDATED: Apply price change to a single product with target price type support
      *
      * @param WC_Product $product Product to update.
      * @param array      $rule_data Rule configuration.
@@ -206,45 +98,190 @@ class Pricetunex_Price_Manager {
      */
     private function apply_price_change_to_product( $product, $rule_data ) {
         try {
-            $old_price = $product->get_regular_price();
+            $target_price_type = isset( $rule_data['target_price_type'] ) ? $rule_data['target_price_type'] : 'smart';
             
-            // Skip if no price set
-            if ( empty( $old_price ) || ! is_numeric( $old_price ) ) {
+            // Get current prices
+            $regular_price = $product->get_regular_price();
+            $sale_price = $product->get_sale_price();
+            
+            // Skip if no regular price set
+            if ( empty( $regular_price ) || ! is_numeric( $regular_price ) ) {
                 return false;
             }
-
-            // Calculate new price
-            $new_price = $this->calculate_new_price( floatval( $old_price ), $rule_data );
             
-            // Apply psychological pricing if enabled
-            if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                $new_price = $this->apply_psychological_pricing( $new_price, $rule_data );
+            $regular_price = floatval( $regular_price );
+            $sale_price = ! empty( $sale_price ) ? floatval( $sale_price ) : 0;
+            
+            // Determine which price(s) to update based on target type
+            switch ( $target_price_type ) {
+                case 'smart':
+                    return $this->apply_smart_price_update( $product, $rule_data, $regular_price, $sale_price );
+                    
+                case 'regular_only':
+                    return $this->apply_regular_price_update( $product, $rule_data, $regular_price );
+                    
+                case 'sale_only':
+                    return $this->apply_sale_price_update( $product, $rule_data, $sale_price );
+                    
+                case 'both_prices':
+                    return $this->apply_both_prices_update( $product, $rule_data, $regular_price, $sale_price );
+                    
+                default:
+                    // Fallback to smart mode
+                    return $this->apply_smart_price_update( $product, $rule_data, $regular_price, $sale_price );
             }
-
-            // Ensure price is not negative
-            $new_price = max( 0, $new_price );
-
-            // Update the product
-            $product->set_regular_price( $new_price );
-            
-            // Also update sale price if it exists and is higher than new regular price
-            $sale_price = $product->get_sale_price();
-            if ( ! empty( $sale_price ) && floatval( $sale_price ) >= $new_price ) {
-                $product->set_sale_price( '' );
-            }
-            
-            // Save the product
-            $product->save();
-
-            // Clear product cache
-            wc_delete_product_transients( $product->get_id() );
-
-            return true;
 
         } catch ( Exception $e ) {
             error_log( 'PriceTuneX Error updating product ' . $product->get_id() . ': ' . $e->getMessage() );
             return false;
         }
+    }
+
+    /**
+     * Apply smart price update - updates the price customers actually see
+     *
+     * @param WC_Product $product Product to update.
+     * @param array      $rule_data Rule configuration.
+     * @param float      $regular_price Current regular price.
+     * @param float      $sale_price Current sale price.
+     * @return bool Success status.
+     */
+    private function apply_smart_price_update( $product, $rule_data, $regular_price, $sale_price ) {
+        if ( $sale_price > 0 ) {
+            // Product has active sale - update sale price (what customers see)
+            $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
+            
+            // Apply psychological pricing if enabled
+            if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
+            }
+            
+            // Ensure sale price doesn't exceed regular price
+            $new_sale_price = max( 0, min( $new_sale_price, $regular_price ) );
+            
+            $product->set_sale_price( $new_sale_price );
+        } else {
+            // No sale price - update regular price
+            $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
+            
+            // Apply psychological pricing if enabled
+            if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
+            }
+            
+            $new_regular_price = max( 0, $new_regular_price );
+            $product->set_regular_price( $new_regular_price );
+        }
+        
+        $product->save();
+        wc_delete_product_transients( $product->get_id() );
+        
+        return true;
+    }
+
+    /**
+     * Apply regular price only update
+     *
+     * @param WC_Product $product Product to update.
+     * @param array      $rule_data Rule configuration.
+     * @param float      $regular_price Current regular price.
+     * @return bool Success status.
+     */
+    private function apply_regular_price_update( $product, $rule_data, $regular_price ) {
+        $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
+        
+        // Apply psychological pricing if enabled
+        if ( ! empty( $rule_data['apply_rounding'] ) ) {
+            $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
+        }
+        
+        $new_regular_price = max( 0, $new_regular_price );
+        $product->set_regular_price( $new_regular_price );
+        
+        // Check if sale price is now higher than regular price and remove if so
+        $sale_price = $product->get_sale_price();
+        if ( ! empty( $sale_price ) && floatval( $sale_price ) >= $new_regular_price ) {
+            $product->set_sale_price( '' );
+        }
+        
+        $product->save();
+        wc_delete_product_transients( $product->get_id() );
+        
+        return true;
+    }
+
+    /**
+     * Apply sale price only update
+     *
+     * @param WC_Product $product Product to update.
+     * @param array      $rule_data Rule configuration.
+     * @param float      $sale_price Current sale price.
+     * @return bool Success status.
+     */
+    private function apply_sale_price_update( $product, $rule_data, $sale_price ) {
+        // Skip products without sale prices
+        if ( $sale_price <= 0 ) {
+            return false;
+        }
+        
+        $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
+        
+        // Apply psychological pricing if enabled
+        if ( ! empty( $rule_data['apply_rounding'] ) ) {
+            $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
+        }
+        
+        // Ensure sale price doesn't exceed regular price
+        $regular_price = floatval( $product->get_regular_price() );
+        $new_sale_price = max( 0, min( $new_sale_price, $regular_price ) );
+        
+        $product->set_sale_price( $new_sale_price );
+        $product->save();
+        wc_delete_product_transients( $product->get_id() );
+        
+        return true;
+    }
+
+    /**
+     * Apply both prices update - maintains discount relationship
+     *
+     * @param WC_Product $product Product to update.
+     * @param array      $rule_data Rule configuration.
+     * @param float      $regular_price Current regular price.
+     * @param float      $sale_price Current sale price.
+     * @return bool Success status.
+     */
+    private function apply_both_prices_update( $product, $rule_data, $regular_price, $sale_price ) {
+        // Update regular price
+        $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
+        
+        // Apply psychological pricing if enabled
+        if ( ! empty( $rule_data['apply_rounding'] ) ) {
+            $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
+        }
+        
+        $new_regular_price = max( 0, $new_regular_price );
+        $product->set_regular_price( $new_regular_price );
+        
+        // Update sale price if it exists
+        if ( $sale_price > 0 ) {
+            $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
+            
+            // Apply psychological pricing if enabled
+            if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
+            }
+            
+            // Ensure sale price doesn't exceed new regular price
+            $new_sale_price = max( 0, min( $new_sale_price, $new_regular_price ) );
+            
+            $product->set_sale_price( $new_sale_price );
+        }
+        
+        $product->save();
+        wc_delete_product_transients( $product->get_id() );
+        
+        return true;
     }
 
     /**
@@ -308,29 +345,96 @@ class Pricetunex_Price_Manager {
     }
 
     /**
-     * Calculate price preview for a product
+     * Preview price rules without applying changes - UPDATED
+     *
+     * @param array $rule_data Rule configuration.
+     * @return array Preview result with affected products.
+     */
+    public function preview_rules( $rule_data ) {
+        try {
+            // Get products based on rules
+            $products = $this->product_query->get_products_by_rules( $rule_data );
+            
+            if ( empty( $products ) ) {
+                return array(
+                    'success' => false,
+                    'message' => esc_html__( 'No products found matching the specified criteria.', 'pricetunex' ),
+                );
+            }
+
+            // Filter products based on target price type
+            $target_price_type = isset( $rule_data['target_price_type'] ) ? $rule_data['target_price_type'] : 'smart';
+            if ( 'sale_only' === $target_price_type ) {
+                // Filter to only products with sale prices
+                $products = array_filter( $products, function( $product_data ) {
+                    $product = $product_data['product'];
+                    $sale_price = $product->get_sale_price();
+                    return ! empty( $sale_price ) && floatval( $sale_price ) > 0;
+                });
+                
+                if ( empty( $products ) ) {
+                    return array(
+                        'success' => false,
+                        'message' => esc_html__( 'No products with sale prices found matching the criteria.', 'pricetunex' ),
+                    );
+                }
+            }
+
+            // Generate preview data (limit to first 10 for performance)
+            $preview_products = array_slice( $products, 0, 10 );
+            $preview_data = array();
+
+            foreach ( $preview_products as $product_data ) {
+                $product = $product_data['product'];
+                $preview_item = $this->calculate_price_preview( $product, $rule_data );
+                
+                if ( $preview_item ) {
+                    $preview_data[] = $preview_item;
+                }
+            }
+
+            return array(
+                'success'            => true,
+                'products_affected'  => count( $products ),
+                'preview_data'       => array(
+                    'count'    => count( $products ),
+                    'products' => $preview_data,
+                ),
+                'message'            => sprintf(
+                    /* translators: %d: Number of products that would be affected */
+                    esc_html__( 'Preview shows %d products would be affected.', 'pricetunex' ),
+                    count( $products )
+                ),
+            );
+
+        } catch ( Exception $e ) {
+            return array(
+                'success' => false,
+                'message' => esc_html__( 'An error occurred while generating preview.', 'pricetunex' ),
+            );
+        }
+    }
+
+    /**
+     * Calculate price preview for a product - UPDATED TO SHOW BOTH PRICES
      *
      * @param WC_Product $product Product to preview.
      * @param array      $rule_data Rule configuration.
      * @return array|null Preview data or null if no price.
      */
     private function calculate_price_preview( $product, $rule_data ) {
-        $current_price = $product->get_regular_price();
+        $regular_price = $product->get_regular_price();
+        $sale_price = $product->get_sale_price();
         
-        if ( empty( $current_price ) || ! is_numeric( $current_price ) ) {
+        if ( empty( $regular_price ) || ! is_numeric( $regular_price ) ) {
             return null;
         }
 
-        $current_price = floatval( $current_price );
-        $new_price = $this->calculate_new_price( $current_price, $rule_data );
+        $regular_price = floatval( $regular_price );
+        $sale_price = ! empty( $sale_price ) ? floatval( $sale_price ) : 0;
         
-        // Apply psychological pricing if enabled
-        if ( ! empty( $rule_data['apply_rounding'] ) ) {
-            $new_price = $this->apply_psychological_pricing( $new_price, $rule_data );
-        }
-
-        $new_price = max( 0, $new_price );
-
+        $target_price_type = isset( $rule_data['target_price_type'] ) ? $rule_data['target_price_type'] : 'smart';
+        
         // Get product name with variation details if applicable
         $product_name = $product->get_name();
         if ( $product->is_type( 'variation' ) ) {
@@ -340,17 +444,139 @@ class Pricetunex_Price_Manager {
             }
         }
 
-        return array(
-            'name'          => $product_name,
-            'old_price'     => wc_price( $current_price ),
-            'new_price'     => wc_price( $new_price ),
-            'change_type'   => $new_price > $current_price ? 'increase' : 'decrease',
-            'change_amount' => wc_price( abs( $new_price - $current_price ) ),
-        );
+        // Handle different target price types
+        switch ( $target_price_type ) {
+            case 'smart':
+                if ( $sale_price > 0 ) {
+                    // Show sale price change
+                    $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
+                    if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                        $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
+                    }
+                    $new_sale_price = max( 0, min( $new_sale_price, $regular_price ) );
+                    
+                    return array(
+                        'name'               => $product_name,
+                        'old_price'          => wc_price( $sale_price ),
+                        'new_price'          => wc_price( $new_sale_price ),
+                        'change_type'        => $new_sale_price > $sale_price ? 'increase' : 'decrease',
+                        'change_amount'      => wc_price( abs( $new_sale_price - $sale_price ) ),
+                        'price_type_updated' => 'Sale Price',
+                    );
+                } else {
+                    // Show regular price change
+                    $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
+                    if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                        $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
+                    }
+                    $new_regular_price = max( 0, $new_regular_price );
+                    
+                    return array(
+                        'name'               => $product_name,
+                        'old_price'          => wc_price( $regular_price ),
+                        'new_price'          => wc_price( $new_regular_price ),
+                        'change_type'        => $new_regular_price > $regular_price ? 'increase' : 'decrease',
+                        'change_amount'      => wc_price( abs( $new_regular_price - $regular_price ) ),
+                        'price_type_updated' => 'Regular Price',
+                    );
+                }
+                break;
+                
+            case 'regular_only':
+                $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
+                if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                    $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
+                }
+                $new_regular_price = max( 0, $new_regular_price );
+                
+                return array(
+                    'name'               => $product_name,
+                    'old_price'          => wc_price( $regular_price ),
+                    'new_price'          => wc_price( $new_regular_price ),
+                    'change_type'        => $new_regular_price > $regular_price ? 'increase' : 'decrease',
+                    'change_amount'      => wc_price( abs( $new_regular_price - $regular_price ) ),
+                    'price_type_updated' => 'Regular Price',
+                );
+                break;
+                
+            case 'sale_only':
+                if ( $sale_price <= 0 ) {
+                    return null; // Skip products without sale prices
+                }
+                
+                $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
+                if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                    $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
+                }
+                $new_sale_price = max( 0, min( $new_sale_price, $regular_price ) );
+                
+                return array(
+                    'name'               => $product_name,
+                    'old_price'          => wc_price( $sale_price ),
+                    'new_price'          => wc_price( $new_sale_price ),
+                    'change_type'        => $new_sale_price > $sale_price ? 'increase' : 'decrease',
+                    'change_amount'      => wc_price( abs( $new_sale_price - $sale_price ) ),
+                    'price_type_updated' => 'Sale Price',
+                );
+                break;
+                
+            case 'both_prices':
+                // UPDATED: Show both price changes for better clarity
+                $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
+                if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                    $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
+                }
+                $new_regular_price = max( 0, $new_regular_price );
+                
+                $preview_data = array(
+                    'name'               => $product_name,
+                    'price_type_updated' => 'Both Prices',
+                    'is_both_prices'     => true, // Flag to identify both prices mode
+                    'regular_price' => array(
+                        'old' => wc_price( $regular_price ),
+                        'new' => wc_price( $new_regular_price ),
+                        'change_type' => $new_regular_price > $regular_price ? 'increase' : 'decrease',
+                        'change_amount' => wc_price( abs( $new_regular_price - $regular_price ) ),
+                    ),
+                );
+                
+                // Add sale price if it exists
+                if ( $sale_price > 0 ) {
+                    $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
+                    if ( ! empty( $rule_data['apply_rounding'] ) ) {
+                        $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
+                    }
+                    $new_sale_price = max( 0, min( $new_sale_price, $new_regular_price ) );
+                    
+                    $preview_data['sale_price'] = array(
+                        'old' => wc_price( $sale_price ),
+                        'new' => wc_price( $new_sale_price ),
+                        'change_type' => $new_sale_price > $sale_price ? 'increase' : 'decrease',
+                        'change_amount' => wc_price( abs( $new_sale_price - $sale_price ) ),
+                    );
+                    
+                    // For overall change type, use the customer-facing price (sale price)
+                    $preview_data['change_type'] = $new_sale_price > $sale_price ? 'increase' : 'decrease';
+                    $preview_data['change_amount'] = wc_price( abs( $new_sale_price - $sale_price ) );
+                    $preview_data['old_price'] = wc_price( $sale_price );
+                    $preview_data['new_price'] = wc_price( $new_sale_price );
+                } else {
+                    // No sale price, use regular price for overall change
+                    $preview_data['change_type'] = $new_regular_price > $regular_price ? 'increase' : 'decrease';
+                    $preview_data['change_amount'] = wc_price( abs( $new_regular_price - $regular_price ) );
+                    $preview_data['old_price'] = wc_price( $regular_price );
+                    $preview_data['new_price'] = wc_price( $new_regular_price );
+                }
+                
+                return $preview_data;
+                break;
+        }
+        
+        return null;
     }
 
     /**
-     * SIMPLIFIED: Backup product prices before changes
+     * UPDATED: Backup product prices before changes - now includes sale prices
      *
      * @param array $products Array of products to backup.
      */
@@ -361,7 +587,7 @@ class Pricetunex_Price_Manager {
             $product = $product_data['product'];
             $product_id = $product->get_id();
 
-            // Simple backup - just store the regular and sale prices
+            // Backup both regular and sale prices
             $backup_data[ $product_id ] = array(
                 'regular_price' => $product->get_regular_price(),
                 'sale_price'    => $product->get_sale_price(),
@@ -370,6 +596,63 @@ class Pricetunex_Price_Manager {
 
         // Store backup data
         update_option( 'pricetunex_price_backup', $backup_data );
+    }
+
+    // ... (rest of the methods remain the same as they were working correctly)
+
+    /**
+     * Undo the last price changes
+     *
+     * @return array Result array with success status.
+     */
+    public function undo_last_changes() {
+        try {
+            // Get backup data
+            $backup_data = get_option( 'pricetunex_price_backup', array() );
+            
+            if ( empty( $backup_data ) ) {
+                return array(
+                    'success' => false,
+                    'message' => esc_html__( 'No backup data found. Cannot undo changes.', 'pricetunex' ),
+                );
+            }
+
+            $products_restored = 0;
+
+            foreach ( $backup_data as $product_id => $backup_info ) {
+                $product = wc_get_product( $product_id );
+                
+                if ( ! $product ) {
+                    continue;
+                }
+
+                // Restore prices
+                $this->restore_product_price( $product, $backup_info );
+                $products_restored++;
+            }
+
+            // Clear backup data after successful restore
+            delete_option( 'pricetunex_price_backup' );
+
+            // Log the undo action
+            $this->log_price_action( 'undo', array(), $products_restored );
+
+            return array(
+                'success'           => true,
+                'products_restored' => $products_restored,
+                'message'           => sprintf(
+                    /* translators: %d: Number of products restored */
+                    esc_html__( 'Successfully restored prices for %d products.', 'pricetunex' ),
+                    $products_restored
+                ),
+            );
+
+        } catch ( Exception $e ) {
+            return array(
+                'success' => false,
+                'message' => esc_html__( 'An error occurred while undoing changes.', 'pricetunex' ),
+            );
+        }
     }
 
     /**
@@ -400,7 +683,7 @@ class Pricetunex_Price_Manager {
     }
 
     /**
-     * SIMPLIFIED: Log price action
+     * Log price action
      *
      * @param string $action Action type (apply, undo, preview).
      * @param array  $rule_data Rule configuration.
@@ -459,7 +742,7 @@ class Pricetunex_Price_Manager {
     }
 
     /**
-     * SIMPLIFIED: Get action description
+     * Get action description - UPDATED to include target price type
      *
      * @param string $action Action type.
      * @param array  $rule_data Rule configuration.
@@ -482,6 +765,7 @@ class Pricetunex_Price_Manager {
         $rule_type = isset( $rule_data['rule_type'] ) ? $rule_data['rule_type'] : 'unknown';
         $rule_value = isset( $rule_data['rule_value'] ) ? $rule_data['rule_value'] : 0;
         $target_scope = isset( $rule_data['target_scope'] ) ? $rule_data['target_scope'] : 'all';
+        $target_price_type = isset( $rule_data['target_price_type'] ) ? $rule_data['target_price_type'] : 'smart';
 
         $description = '';
 
@@ -500,15 +784,27 @@ class Pricetunex_Price_Manager {
             );
         }
 
+        // Add target price type info
+        $price_type_labels = array(
+            'smart'        => esc_html__( 'using smart price selection', 'pricetunex' ),
+            'regular_only' => esc_html__( 'to regular prices only', 'pricetunex' ),
+            'sale_only'    => esc_html__( 'to sale prices only', 'pricetunex' ),
+            'both_prices'  => esc_html__( 'to both regular and sale prices', 'pricetunex' ),
+        );
+        
+        if ( isset( $price_type_labels[ $target_price_type ] ) ) {
+            $description .= ' ' . $price_type_labels[ $target_price_type ];
+        }
+
         // Target scope
         if ( 'all' !== $target_scope ) {
             $description .= ' ' . sprintf(
                 /* translators: %s: Target scope */
-                esc_html__( 'to %s products', 'pricetunex' ),
+                esc_html__( 'for %s products', 'pricetunex' ),
                 str_replace( '_', ' ', $target_scope )
             );
         } else {
-            $description .= ' ' . esc_html__( 'to all products', 'pricetunex' );
+            $description .= ' ' . esc_html__( 'for all products', 'pricetunex' );
         }
 
         $description .= sprintf(
@@ -520,6 +816,13 @@ class Pricetunex_Price_Manager {
         return $description;
     }
 
+
+    
+    
+    
+    
+    
+    
     /**
      * Get products statistics for dashboard
      *

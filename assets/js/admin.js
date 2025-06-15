@@ -1,5 +1,5 @@
 /**
- * PriceTuneX Admin JavaScript - FIXED VERSION
+ * PriceTuneX Admin JavaScript - COMPLETE WORKING VERSION WITH TARGET PRICE TYPE
  */
 (function($) {
     'use strict';
@@ -36,6 +36,7 @@
             
             // Form dependencies
             $(document).on('change', '#rule_type', this.handleRuleTypeChange.bind(this));
+            $(document).on('change', '#target_price_type', this.handleTargetPriceTypeChange.bind(this));
             $(document).on('change', '#target_scope', this.handleTargetScopeChange.bind(this));
             $(document).on('change', '#apply_rounding', this.handleRoundingToggle.bind(this));
             $(document).on('change', '#rounding_type', this.handleRoundingTypeChange.bind(this));
@@ -88,6 +89,7 @@
          */
         initFormDependencies: function() {
             this.handleRuleTypeChange();
+            this.handleTargetPriceTypeChange();
             this.handleTargetScopeChange();
             this.handleRoundingToggle();
             this.handleRoundingTypeChange();
@@ -106,6 +108,21 @@
                 $('.percentage-desc').hide();
                 $('.fixed-desc').show();
             }
+        },
+
+        /**
+         * Handle target price type change
+         */
+        handleTargetPriceTypeChange: function() {
+            var targetPriceType = $('#target_price_type').val();
+            var descriptions = {
+                'smart': 'Updates the price customers actually see (sale price if active, otherwise regular price).',
+                'regular_only': 'Always updates regular prices only. Keeps existing sale prices intact.',
+                'sale_only': 'Only updates products that have active sale prices. Great for flash sales.',
+                'both_prices': 'Updates both regular and sale prices by the same amount. Maintains discount relationships.'
+            };
+            
+            $('#target-price-description').text(descriptions[targetPriceType] || descriptions['smart']);
         },
 
         /**
@@ -131,7 +148,6 @@
             
             if (isChecked) {
                 $('#rounding-options').show();
-                // Also check if custom is selected to show custom field
                 this.handleRoundingTypeChange();
             } else {
                 $('#rounding-options').hide();
@@ -174,6 +190,7 @@
                     nonce: pricetunex_ajax.nonce,
                     rule_type: formData.rule_type,
                     rule_value: formData.rule_value,
+                    target_price_type: formData.target_price_type,
                     target_scope: formData.target_scope,
                     categories: formData.categories,
                     tags: formData.tags,
@@ -182,7 +199,7 @@
                     price_max: formData.price_max,
                     apply_rounding: formData.apply_rounding,
                     rounding_type: formData.rounding_type,
-                    custom_ending: formData.custom_ending  // FIXED: Added missing field
+                    custom_ending: formData.custom_ending
                 },
                 success: function(response) {
                     if (response.success) {
@@ -202,7 +219,7 @@
         },
 
         /**
-         * Handle apply rules - USES MODAL
+         * Handle apply rules
          */
         handleApplyRules: function(e) {
             e.preventDefault();
@@ -212,16 +229,31 @@
                 return;
             }
             
-            // Get the current preview count for a better confirmation message
             var previewCount = $('#preview-results .count').text();
+            var targetPriceType = formData.target_price_type;
+            var priceTypeText = this.getPriceTypeDisplayText(targetPriceType);
+            
             var confirmMessage = 'Are you sure you want to apply these price changes to ' + 
-                               (previewCount || 'the selected') + ' products? This action cannot be undone without using the undo feature.';
+                               (previewCount || 'the selected') + ' products using ' + priceTypeText + '? This action cannot be undone without using the undo feature.';
             
             this.showModal(confirmMessage, 'apply-rules');
         },
 
         /**
-         * Handle undo last changes - USES MODAL
+         * Get display text for price type
+         */
+        getPriceTypeDisplayText: function(targetPriceType) {
+            var priceTypeTexts = {
+                'smart': 'smart price selection',
+                'regular_only': 'regular prices only',
+                'sale_only': 'sale prices only',
+                'both_prices': 'both regular and sale prices'
+            };
+            return priceTypeTexts[targetPriceType] || 'smart price selection';
+        },
+
+        /**
+         * Handle undo last changes
          */
         handleUndoLast: function(e) {
             e.preventDefault();
@@ -241,7 +273,7 @@
         },
 
         /**
-         * Handle clear logs - USES MODAL
+         * Handle clear logs
          */
         handleClearLogs: function(e) {
             e.preventDefault();
@@ -253,7 +285,7 @@
         },
 
         /**
-         * Handle modal confirmation - HANDLES ALL MODAL ACTIONS
+         * Handle modal confirmation
          */
         handleModalConfirm: function() {
             var action = $('#pricetunex-modal').data('action');
@@ -293,6 +325,7 @@
                     nonce: pricetunex_ajax.nonce,
                     rule_type: formData.rule_type,
                     rule_value: formData.rule_value,
+                    target_price_type: formData.target_price_type,
                     target_scope: formData.target_scope,
                     categories: formData.categories,
                     tags: formData.tags,
@@ -301,7 +334,7 @@
                     price_max: formData.price_max,
                     apply_rounding: formData.apply_rounding,
                     rounding_type: formData.rounding_type,
-                    custom_ending: formData.custom_ending  // FIXED: Added missing field
+                    custom_ending: formData.custom_ending
                 },
                 success: function(response) {
                     if (response.success) {
@@ -386,7 +419,7 @@
         },
 
         /**
-         * Get form data - FIXED VERSION
+         * Get form data
          */
         getFormData: function() {
             var data = {};
@@ -394,6 +427,7 @@
             // Basic fields
             data.rule_type = $('#rule_type').val() || 'percentage';
             data.rule_value = parseFloat($('#rule_value').val()) || 0;
+            data.target_price_type = $('#target_price_type').val() || 'smart';
             data.target_scope = $('#target_scope').val() || 'all';
             
             // Scope-specific fields
@@ -407,19 +441,18 @@
             data.price_min = parseFloat($('#price_min').val()) || 0;
             data.price_max = parseFloat($('#price_max').val()) || 0;
             
-            // Rounding options - FIXED: Added missing custom_ending field
+            // Rounding options
             data.apply_rounding = $('#apply_rounding').is(':checked');
             data.rounding_type = $('#rounding_type').val() || '0.99';
             data.custom_ending = parseFloat($('#custom_ending').val()) || 0;
             
-            // Debug log the form data
             console.log('PriceTuneX getFormData:', data);
             
             return data;
         },
 
         /**
-         * Form validation - ENHANCED to include custom ending validation
+         * Form validation
          */
         validateForm: function(data) {
             // Check if rule value is provided
@@ -471,7 +504,7 @@
                 }
             }
             
-            // ADDED: Validate custom ending value
+            // Validate custom ending value
             if (data.apply_rounding && data.rounding_type === 'custom') {
                 if (data.custom_ending < 0 || data.custom_ending >= 1) {
                     this.showMessage('Custom ending must be between 0.00 and 0.99.', 'error');
@@ -480,11 +513,17 @@
                 }
             }
             
+            // Special validation for sale_only target price type
+            if (data.target_price_type === 'sale_only') {
+                var infoMessage = 'Note: Only products with active sale prices will be updated when using "Sale Price Only" mode.';
+                this.showMessage(infoMessage, 'info');
+            }
+            
             return true;
         },
 
         /**
-         * Display preview results
+         * Display preview results with both prices support
          */
         displayPreview: function(data) {
             var html = '<div class="preview-summary">';
@@ -502,12 +541,56 @@
                 data.preview_data.products.forEach(function(product) {
                     html += '<div class="preview-item">';
                     html += '<strong>' + product.name + '</strong><br>';
-                    html += '<span class="price-change">';
-                    html += product.old_price + ' → ' + product.new_price;
-                    html += ' <span class="change-amount ' + product.change_type + '">';
-                    html += (product.change_type === 'increase' ? '+' : '-') + product.change_amount;
-                    html += '</span>';
-                    html += '</span>';
+                    
+                    // Check if this is both prices mode
+                    if (product.is_both_prices) {
+                        // Both Prices Mode - Show detailed breakdown
+                        html += '<div class="both-prices-preview">';
+                        
+                        // Regular price
+                        if (product.regular_price) {
+                            html += '<div class="price-line">';
+                            html += '<span class="price-label">Regular:</span>';
+                            html += '<span class="price-change">';
+                            html += product.regular_price.old + ' → ' + product.regular_price.new;
+                            html += ' <span class="change-amount ' + product.regular_price.change_type + '">';
+                            html += (product.regular_price.change_type === 'increase' ? '+' : '-') + product.regular_price.change_amount;
+                            html += '</span>';
+                            html += '</span>';
+                            html += '</div>';
+                        }
+                        
+                        // Sale price (if exists)
+                        if (product.sale_price) {
+                            html += '<div class="price-line">';
+                            html += '<span class="price-label">Sale:</span>';
+                            html += '<span class="price-change">';
+                            html += product.sale_price.old + ' → ' + product.sale_price.new;
+                            html += ' <span class="change-amount ' + product.sale_price.change_type + '">';
+                            html += (product.sale_price.change_type === 'increase' ? '+' : '-') + product.sale_price.change_amount;
+                            html += '</span>';
+                            html += '</span>';
+                            html += '</div>';
+                        }
+                        
+                        html += '</div>'; // Close both-prices-preview
+                    } else {
+                        // Single Price Mode
+                        html += '<span class="price-change">';
+                        html += product.old_price + ' → ' + product.new_price;
+                        html += ' <span class="change-amount ' + product.change_type + '">';
+                        html += (product.change_type === 'increase' ? '+' : '-') + product.change_amount;
+                        html += '</span>';
+                        html += '</span>';
+                    }
+                    
+                    // Show which price type is being updated
+                    if (product.price_type_updated) {
+                        html += '<div class="price-type-label">';
+                        html += '<small><em>' + product.price_type_updated + '</em></small>';
+                        html += '</div>';
+                    }
+                    
                     html += '</div>';
                 });
                 html += '</div>';
@@ -530,7 +613,6 @@
          * Load activity logs
          */
         loadLogs: function() {
-            // Clear existing content and show single loading indicator
             $('#logs-container').html('<div class="logs-loading"><p>Loading logs...</p></div>');
             
             $.ajax({
@@ -594,25 +676,36 @@
                 },
                 success: function(response) {
                     if (response.success && response.data) {
+                        // Update basic stats that we know exist
                         $('#total-products').text(response.data.total_products || '-');
+                        
                         if (response.data.last_update) {
                             $('#last-update').text(response.data.last_update);
                         }
                         
-                        // Update additional stats if elements exist
+                        // Update additional stats only if elements exist
                         if (response.data.stats) {
                             var stats = response.data.stats;
-                            $('.stat-simple-products').text(stats.simple_products || 0);
-                            $('.stat-variable-products').text(stats.variable_products || 0);
-                            $('.stat-products-with-price').text(stats.products_with_price || 0);
-                            if (stats.average_price) {
-                                $('.stat-average-price').text('$' + stats.average_price.toFixed(2));
+                            
+                            if ($('.stat-simple-products').length) {
+                                $('.stat-simple-products').text(stats.simple_products || 0);
+                            }
+                            
+                            if ($('.stat-variable-products').length) {
+                                $('.stat-variable-products').text(stats.variable_products || 0);
+                            }
+                            
+                            if ($('.stat-products-with-price').length) {
+                                $('.stat-products-with-price').text(stats.products_with_price || 0);
+                            }
+                            
+                            if ($('.stat-average-price').length && stats.average_price) {
+                                $('.stat-average-price').text('$' + parseFloat(stats.average_price).toFixed(2));
                             }
                         }
                     }
                 },
                 error: function() {
-                    // Silently fail for stats - non-critical
                     console.log('Failed to load statistics');
                 }
             });
@@ -679,12 +772,13 @@
             // Insert after the main heading
             $('.pricetunex-admin h1').after($message);
             
-            // Auto-hide after 5 seconds
+            // Auto-hide based on message type
+            var hideDelay = type === 'info' ? 3000 : 5000;
             setTimeout(function() {
                 $message.fadeOut(300, function() {
                     $(this).remove();
                 });
-            }, 5000);
+            }, hideDelay);
             
             // Scroll to top to show message
             $('html, body').animate({
@@ -709,7 +803,6 @@
      * Initialize when document is ready
      */
     $(document).ready(function() {
-        // Only initialize on our admin page
         if ($('.pricetunex-admin').length) {
             console.log('PriceTuneX: Admin page detected, initializing...');
             PriceTuneXAdmin.init();
@@ -720,16 +813,9 @@
      * Handle escape key to close modals
      */
     $(document).keyup(function(e) {
-        if (e.keyCode === 27) { // Escape key
+        if (e.keyCode === 27) {
             PriceTuneXAdmin.hideModal();
         }
-    });
-
-    /**
-     * Handle window resize
-     */
-    $(window).resize(function() {
-        // Add any responsive handling here if needed
     });
 
     /**
@@ -759,7 +845,7 @@
      * Console log for debugging
      */
     if (typeof console !== 'undefined' && console.log) {
-        console.log('PriceTuneX Admin JS loaded successfully - FIXED CUSTOM ENDING');
+        console.log('PriceTuneX Admin JS loaded successfully - COMPLETE VERSION WITH TARGET PRICE TYPE SUPPORT');
     }
 
 })(jQuery);
