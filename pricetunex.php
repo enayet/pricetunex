@@ -24,12 +24,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'PRICETUNEX_VERSION', '1.2.6' );
+define( 'PRICETUNEX_VERSION', '1.2.7' );
 define( 'PRICETUNEX_PLUGIN_FILE', __FILE__ );
 define( 'PRICETUNEX_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'PRICETUNEX_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'PRICETUNEX_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'PRICETUNEX_TEXT_DOMAIN', 'pricetunex' );
 
 /**
  * Main PriceTuneX Class
@@ -461,31 +460,6 @@ function pricetunex_cleanup_old_logs() {
     // This will be implemented in the logging functionality
     do_action( 'pricetunex_cleanup_logs_action', $max_entries );
 }
-
-/**
- * Global helper function to get plugin settings
- *
- * @param string $key     Setting key.
- * @param mixed  $default Default value.
- * @return mixed
- */
-//function pricetunex_get_setting( $key, $default = null ) {
-//    $settings = get_option( 'pricetunex_settings', array() );
-//    return isset( $settings[ $key ] ) ? $settings[ $key ] : $default;
-//}
-
-/**
- * Global helper function to update plugin settings
- *
- * @param string $key   Setting key.
- * @param mixed  $value Setting value.
- * @return bool
- */
-//function pricetunex_update_setting( $key, $value ) {
-//    $settings = get_option( 'pricetunex_settings', array() );
-//    $settings[ $key ] = $value;
-//    return update_option( 'pricetunex_settings', $settings );
-//}
 
 /**
  * Check if PriceTuneX is properly loaded

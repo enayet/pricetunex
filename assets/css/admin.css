@@ -690,12 +690,6 @@
 }
 
 /* Enhanced statistics display */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
-}
 
 .stat-box {
     background: #f8f9fa;
@@ -721,9 +715,6 @@
 }
 
 /* Progress bars for price ranges */
-.price-range-stats {
-    margin-top: 15px;
-}
 
 .price-range-item {
     display: flex;
@@ -788,19 +779,6 @@
     }
 }
 
-/* Toast notifications */
-.pricetunex-toast {
-    position: fixed;
-    top: 32px;
-    right: 20px;
-    z-index: 999999;
-    min-width: 300px;
-    padding: 15px 20px;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    animation: toastSlideIn 0.3s ease-out;
-}
-
 @keyframes toastSlideIn {
     from {
         transform: translateX(100%);
@@ -848,13 +826,6 @@
         left: 10px;
         min-width: auto;
     }
-}
-
-/* Loading skeleton */
-.loading-skeleton {
-    background: linear-gradient(90deg, #f0f0f1 25%, #e0e0e1 50%, #f0f0f1 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
 }
 
 @keyframes loading {
@@ -1010,4 +981,89 @@
         min-width: auto;
         font-size: 12px;
     }
+}
+
+
+
+/* Simplified Preview Styling */
+
+.preview-item {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f1;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.preview-item:hover {
+    background: #f8f9fa;
+}
+
+.preview-item:last-child {
+    border-bottom: none;
+}
+
+.preview-item strong {
+    color: #1d2327;
+}
+
+.primary-change {
+    margin-top: 8px;
+}
+
+.price-change {
+    display: block;
+    color: #646970;
+    font-weight: 500;
+}
+
+.change-amount {
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-left: 5px;
+}
+
+.change-amount.increase {
+    background: #d63638;
+    color: #fff;
+}
+
+.change-amount.decrease {
+    background: #00a32a;
+    color: #fff;
+}
+
+.price-type-label {
+    margin-top: 4px;
+}
+
+.price-type-label small {
+    color: #646970;
+    font-style: italic;
+}
+
+/* Detailed breakdown for both_prices mode */
+.detailed-breakdown {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #2271b1;
+}
+
+.price-detail {
+    font-size: 12px;
+    margin-bottom: 2px;
+    color: #1d2327;
+}
+
+.price-detail:last-child {
+    margin-bottom: 0;
+}
+
+.detail-label {
+    font-weight: 600;
+    min-width: 60px;
+    display: inline-block;
 }

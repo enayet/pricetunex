@@ -1,5 +1,5 @@
 /**
- * PriceTuneX Admin JavaScript - COMPLETE WORKING VERSION WITH TARGET PRICE TYPE
+ * PriceTuneX Admin JavaScript - UPDATED WITH TARGET PRICE TYPE
  */
 (function($) {
     'use strict';
@@ -89,7 +89,7 @@
          */
         initFormDependencies: function() {
             this.handleRuleTypeChange();
-            this.handleTargetPriceTypeChange();
+            this.handleTargetPriceTypeChange(); // NEW
             this.handleTargetScopeChange();
             this.handleRoundingToggle();
             this.handleRoundingTypeChange();
@@ -111,7 +111,7 @@
         },
 
         /**
-         * Handle target price type change
+         * NEW: Handle target price type change
          */
         handleTargetPriceTypeChange: function() {
             var targetPriceType = $('#target_price_type').val();
@@ -148,6 +148,7 @@
             
             if (isChecked) {
                 $('#rounding-options').show();
+                // Also check if custom is selected to show custom field
                 this.handleRoundingTypeChange();
             } else {
                 $('#rounding-options').hide();
@@ -190,7 +191,7 @@
                     nonce: pricetunex_ajax.nonce,
                     rule_type: formData.rule_type,
                     rule_value: formData.rule_value,
-                    target_price_type: formData.target_price_type,
+                    target_price_type: formData.target_price_type, // NEW
                     target_scope: formData.target_scope,
                     categories: formData.categories,
                     tags: formData.tags,
@@ -219,7 +220,7 @@
         },
 
         /**
-         * Handle apply rules
+         * Handle apply rules - USES MODAL
          */
         handleApplyRules: function(e) {
             e.preventDefault();
@@ -229,6 +230,7 @@
                 return;
             }
             
+            // Get the current preview count for a better confirmation message
             var previewCount = $('#preview-results .count').text();
             var targetPriceType = formData.target_price_type;
             var priceTypeText = this.getPriceTypeDisplayText(targetPriceType);
@@ -240,7 +242,7 @@
         },
 
         /**
-         * Get display text for price type
+         * NEW: Get display text for price type
          */
         getPriceTypeDisplayText: function(targetPriceType) {
             var priceTypeTexts = {
@@ -253,7 +255,7 @@
         },
 
         /**
-         * Handle undo last changes
+         * Handle undo last changes - USES MODAL
          */
         handleUndoLast: function(e) {
             e.preventDefault();
@@ -273,7 +275,7 @@
         },
 
         /**
-         * Handle clear logs
+         * Handle clear logs - USES MODAL
          */
         handleClearLogs: function(e) {
             e.preventDefault();
@@ -285,7 +287,7 @@
         },
 
         /**
-         * Handle modal confirmation
+         * Handle modal confirmation - HANDLES ALL MODAL ACTIONS
          */
         handleModalConfirm: function() {
             var action = $('#pricetunex-modal').data('action');
@@ -325,7 +327,7 @@
                     nonce: pricetunex_ajax.nonce,
                     rule_type: formData.rule_type,
                     rule_value: formData.rule_value,
-                    target_price_type: formData.target_price_type,
+                    target_price_type: formData.target_price_type, // NEW
                     target_scope: formData.target_scope,
                     categories: formData.categories,
                     tags: formData.tags,
@@ -419,7 +421,7 @@
         },
 
         /**
-         * Get form data
+         * Get form data - UPDATED WITH TARGET PRICE TYPE
          */
         getFormData: function() {
             var data = {};
@@ -427,7 +429,7 @@
             // Basic fields
             data.rule_type = $('#rule_type').val() || 'percentage';
             data.rule_value = parseFloat($('#rule_value').val()) || 0;
-            data.target_price_type = $('#target_price_type').val() || 'smart';
+            data.target_price_type = $('#target_price_type').val() || 'smart'; // NEW
             data.target_scope = $('#target_scope').val() || 'all';
             
             // Scope-specific fields
@@ -446,13 +448,14 @@
             data.rounding_type = $('#rounding_type').val() || '0.99';
             data.custom_ending = parseFloat($('#custom_ending').val()) || 0;
             
+            // Debug log the form data
             console.log('PriceTuneX getFormData:', data);
             
             return data;
         },
 
         /**
-         * Form validation
+         * Form validation - UPDATED WITH TARGET PRICE TYPE VALIDATION
          */
         validateForm: function(data) {
             // Check if rule value is provided
@@ -513,8 +516,9 @@
                 }
             }
             
-            // Special validation for sale_only target price type
+            // NEW: Special validation for sale_only target price type
             if (data.target_price_type === 'sale_only') {
+                // Show informational message about sale_only
                 var infoMessage = 'Note: Only products with active sale prices will be updated when using "Sale Price Only" mode.';
                 this.showMessage(infoMessage, 'info');
             }
@@ -523,83 +527,80 @@
         },
 
         /**
-         * Display preview results with both prices support
+         * Display preview results - UPDATED TO HANDLE BOTH PRICES STRUCTURE
          */
         displayPreview: function(data) {
             var html = '<div class="preview-summary">';
             html += '<h4>Products Affected: <span class="count">' + data.products_affected + '</span></h4>';
-            
+
             if (data.preview_data && data.preview_data.products && data.preview_data.products.length > 0) {
                 html += '<div class="preview-list">';
-                
+
                 // Show preview note if we're showing a limited sample
                 if (data.products_affected > data.preview_data.products.length) {
                     html += '<p class="preview-note"><em>Showing first ' + data.preview_data.products.length + 
                            ' products (out of ' + data.products_affected + ' total that will be affected)</em></p>';
                 }
-                
+
                 data.preview_data.products.forEach(function(product) {
-                    html += '<div class="preview-item">';
-                    html += '<strong>' + product.name + '</strong><br>';
-                    
-                    // Check if this is both prices mode
-                    if (product.is_both_prices) {
-                        // Both Prices Mode - Show detailed breakdown
-                        html += '<div class="both-prices-preview">';
-                        
-                        // Regular price
-                        if (product.regular_price) {
-                            html += '<div class="price-line">';
-                            html += '<span class="price-label">Regular:</span>';
-                            html += '<span class="price-change">';
-                            html += product.regular_price.old + ' → ' + product.regular_price.new;
-                            html += ' <span class="change-amount ' + product.regular_price.change_type + '">';
-                            html += (product.regular_price.change_type === 'increase' ? '+' : '-') + product.regular_price.change_amount;
-                            html += '</span>';
-                            html += '</span>';
-                            html += '</div>';
-                        }
-                        
-                        // Sale price (if exists)
-                        if (product.sale_price) {
-                            html += '<div class="price-line">';
-                            html += '<span class="price-label">Sale:</span>';
-                            html += '<span class="price-change">';
-                            html += product.sale_price.old + ' → ' + product.sale_price.new;
-                            html += ' <span class="change-amount ' + product.sale_price.change_type + '">';
-                            html += (product.sale_price.change_type === 'increase' ? '+' : '-') + product.sale_price.change_amount;
-                            html += '</span>';
-                            html += '</span>';
-                            html += '</div>';
-                        }
-                        
-                        html += '</div>'; // Close both-prices-preview
-                    } else {
-                        // Single Price Mode
-                        html += '<span class="price-change">';
-                        html += product.old_price + ' → ' + product.new_price;
-                        html += ' <span class="change-amount ' + product.change_type + '">';
-                        html += (product.change_type === 'increase' ? '+' : '-') + product.change_amount;
-                        html += '</span>';
-                        html += '</span>';
-                    }
-                    
-                    // Show which price type is being updated
-                    if (product.price_type_updated) {
-                        html += '<div class="price-type-label">';
-                        html += '<small><em>' + product.price_type_updated + '</em></small>';
-                        html += '</div>';
-                    }
-                    
-                    html += '</div>';
+                    html += PriceTuneXAdmin.renderPreviewItem(product);
                 });
+
                 html += '</div>';
             } else {
                 html += '<p>No products found matching the criteria.</p>';
             }
-            
+
             html += '</div>';
             $('#preview-results').html(html).addClass('fade-in');
+        },
+
+        /**
+         * Render individual preview item - SIMPLIFIED
+         */
+        renderPreviewItem: function(product) {
+            var html = '<div class="preview-item">';
+            html += '<strong>' + product.name + '</strong><br>';
+
+            // Show the primary change (what customers see)
+            if (product.primary_change) {
+                var change = product.primary_change;
+                html += '<div class="primary-change">';
+                html += '<span class="price-change">';
+                html += change.formatted_old + ' → ' + change.formatted_new;
+                html += ' <span class="change-amount ' + change.change_type + '">';
+                html += (change.change_type === 'increase' ? '+' : '-') + change.formatted_change;
+                html += '</span>';
+                html += '</span>';
+                html += '<div class="price-type-label">';
+                html += '<small><em>' + change.label + '</em></small>';
+                html += '</div>';
+                html += '</div>';
+
+                // Show detailed breakdown for both_prices mode
+                if (change.type === 'both' && product.updates) {
+                    html += '<div class="detailed-breakdown">';
+
+                    if (product.updates.regular) {
+                        html += '<div class="price-detail">';
+                        html += '<span class="detail-label">Regular:</span> ';
+                        html += product.regular_price.formatted_original + ' → ' + product.updates.regular.formatted_new;
+                        html += '</div>';
+                    }
+
+                    if (product.updates.sale) {
+                        html += '<div class="price-detail">';
+                        html += '<span class="detail-label">Sale:</span> ';
+                        html += product.sale_price.formatted_original + ' → ' + product.updates.sale.formatted_new;
+                        html += '</div>';
+                    }
+
+                    html += '</div>';
+                }
+            }
+
+            html += '</div>';
+            return html;
         },
 
         /**
@@ -613,6 +614,7 @@
          * Load activity logs
          */
         loadLogs: function() {
+            // Clear existing content and show single loading indicator
             $('#logs-container').html('<div class="logs-loading"><p>Loading logs...</p></div>');
             
             $.ajax({
@@ -676,36 +678,25 @@
                 },
                 success: function(response) {
                     if (response.success && response.data) {
-                        // Update basic stats that we know exist
                         $('#total-products').text(response.data.total_products || '-');
-                        
                         if (response.data.last_update) {
                             $('#last-update').text(response.data.last_update);
                         }
                         
-                        // Update additional stats only if elements exist
+                        // Update additional stats if elements exist
                         if (response.data.stats) {
                             var stats = response.data.stats;
-                            
-                            if ($('.stat-simple-products').length) {
-                                $('.stat-simple-products').text(stats.simple_products || 0);
-                            }
-                            
-                            if ($('.stat-variable-products').length) {
-                                $('.stat-variable-products').text(stats.variable_products || 0);
-                            }
-                            
-                            if ($('.stat-products-with-price').length) {
-                                $('.stat-products-with-price').text(stats.products_with_price || 0);
-                            }
-                            
-                            if ($('.stat-average-price').length && stats.average_price) {
-                                $('.stat-average-price').text('$' + parseFloat(stats.average_price).toFixed(2));
+                            $('.stat-simple-products').text(stats.simple_products || 0);
+                            $('.stat-variable-products').text(stats.variable_products || 0);
+                            $('.stat-products-with-price').text(stats.products_with_price || 0);
+                            if (stats.average_price) {
+                                $('.stat-average-price').text('$' + stats.average_price.toFixed(2));
                             }
                         }
                     }
                 },
                 error: function() {
+                    // Silently fail for stats - non-critical
                     console.log('Failed to load statistics');
                 }
             });
@@ -758,7 +749,7 @@
         },
 
         /**
-         * Show message notification
+         * Show message notification - UPDATED TO SUPPORT INFO TYPE
          */
         showMessage: function(message, type) {
             type = type || 'info';
@@ -772,7 +763,7 @@
             // Insert after the main heading
             $('.pricetunex-admin h1').after($message);
             
-            // Auto-hide based on message type
+            // Auto-hide after 5 seconds (except for info messages which hide after 3 seconds)
             var hideDelay = type === 'info' ? 3000 : 5000;
             setTimeout(function() {
                 $message.fadeOut(300, function() {
@@ -803,6 +794,7 @@
      * Initialize when document is ready
      */
     $(document).ready(function() {
+        // Only initialize on our admin page
         if ($('.pricetunex-admin').length) {
             console.log('PriceTuneX: Admin page detected, initializing...');
             PriceTuneXAdmin.init();
@@ -813,9 +805,16 @@
      * Handle escape key to close modals
      */
     $(document).keyup(function(e) {
-        if (e.keyCode === 27) {
+        if (e.keyCode === 27) { // Escape key
             PriceTuneXAdmin.hideModal();
         }
+    });
+
+    /**
+     * Handle window resize
+     */
+    $(window).resize(function() {
+        // Add any responsive handling here if needed
     });
 
     /**
@@ -845,7 +844,67 @@
      * Console log for debugging
      */
     if (typeof console !== 'undefined' && console.log) {
-        console.log('PriceTuneX Admin JS loaded successfully - COMPLETE VERSION WITH TARGET PRICE TYPE SUPPORT');
+        console.log('PriceTuneX Admin JS loaded successfully - WITH TARGET PRICE TYPE SUPPORT');
+    }
+
+
+
+
+    /**
+     * Initialize when document is ready
+     */
+    $(document).ready(function() {
+        // Only initialize on our admin page
+        if ($('.pricetunex-admin').length) {
+            console.log('PriceTuneX: Admin page detected, initializing...');
+            PriceTuneXAdmin.init();
+        }
+    });
+
+    /**
+     * Handle escape key to close modals
+     */
+    $(document).keyup(function(e) {
+        if (e.keyCode === 27) { // Escape key
+            PriceTuneXAdmin.hideModal();
+        }
+    });
+
+    /**
+     * Handle window resize
+     */
+    $(window).resize(function() {
+        // Add any responsive handling here if needed
+    });
+
+    /**
+     * Prevent form submission on enter in number inputs
+     */
+    $(document).on('keypress', 'input[type="number"]', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+        }
+    });
+
+    /**
+     * Handle clicks outside modal to close
+     */
+    $(document).on('click', '.pricetunex-modal', function(e) {
+        if (e.target === this) {
+            PriceTuneXAdmin.hideModal();
+        }
+    });
+
+    /**
+     * Make the admin interface globally accessible for debugging
+     */
+    window.PriceTuneXAdmin = PriceTuneXAdmin;
+
+    /**
+     * Console log for debugging
+     */
+    if (typeof console !== 'undefined' && console.log) {
+        console.log('PriceTuneX Admin JS loaded successfully - WITH TARGET PRICE TYPE SUPPORT');
     }
 
 })(jQuery);

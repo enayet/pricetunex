@@ -24,14 +24,8 @@ class Pricetunex_Product_Query {
      */
     public function get_products_by_rules( $rule_data ) {
         try {
-            // DEBUG: Log the incoming rule data
-            error_log( 'PriceTuneX: Getting products with rules: ' . print_r( $rule_data, true ) );
-            
             // Build query arguments based on rules
             $query_args = $this->build_query_args( $rule_data );
-            
-            // DEBUG: Log the query arguments
-            error_log( 'PriceTuneX: Query args: ' . print_r( $query_args, true ) );
             
             // Execute the query
             $products = $this->execute_product_query( $query_args );
@@ -39,13 +33,9 @@ class Pricetunex_Product_Query {
             // Apply additional filters if needed
             $filtered_products = $this->apply_additional_filters( $products, $rule_data );
             
-            // DEBUG: Final count
-            error_log( 'PriceTuneX: Final filtered products count: ' . count( $filtered_products ) );
-            
             return $filtered_products;
 
         } catch ( Exception $e ) {
-            error_log( 'PriceTuneX Product Query Error: ' . $e->getMessage() );
             return array();
         }
     }
@@ -108,9 +98,6 @@ class Pricetunex_Product_Query {
     private function add_category_filters( $args, $rule_data ) {
         if ( ! empty( $rule_data['categories'] ) && is_array( $rule_data['categories'] ) ) {
             $category_ids = array_map( 'absint', $rule_data['categories'] );
-            
-            // DEBUG: Log what categories we're filtering by
-            error_log( 'PriceTuneX: Filtering by category IDs: ' . implode( ', ', $category_ids ) );
             
             // Use tax_query for category filtering
             $args['tax_query'] = array(
@@ -185,9 +172,6 @@ class Pricetunex_Product_Query {
         $query = new WC_Product_Query( $args );
         $products = $query->get_products();
 
-        // DEBUG: Log what WooCommerce returned
-        error_log( 'PriceTuneX: WooCommerce returned ' . count( $products ) . ' parent products' );
-
         // Convert to our standard format and expand variable products
         $product_data = array();
         $processed_variations = array(); // Track variations to prevent duplicates
@@ -197,17 +181,13 @@ class Pricetunex_Product_Query {
                 continue;
             }
 
-            error_log( 'PriceTuneX: Processing product: ' . $product->get_name() . ' (ID: ' . $product->get_id() . ', Type: ' . $product->get_type() . ')' );
-
             if ( $product->is_type( 'variable' ) ) {
                 // For variable products, add each variation as a separate entry
                 $variations = $product->get_children();
-                error_log( 'PriceTuneX: Variable product has ' . count( $variations ) . ' variations' );
                 
                 foreach ( $variations as $variation_id ) {
                     // Check if we've already processed this variation
                     if ( in_array( $variation_id, $processed_variations ) ) {
-                        error_log( 'PriceTuneX: Skipping duplicate variation ID: ' . $variation_id );
                         continue;
                     }
                     
@@ -224,7 +204,6 @@ class Pricetunex_Product_Query {
                         
                         // Mark this variation as processed
                         $processed_variations[] = $variation_id;
-                        error_log( 'PriceTuneX: Added variation: ' . $variation->get_name() . ' (ID: ' . $variation_id . ', Price: ' . $variation->get_regular_price() . ')' );
                     }
                 }
             } else {
@@ -236,15 +215,11 @@ class Pricetunex_Product_Query {
                         'type'       => $product->get_type(),
                         'price'      => $product->get_regular_price(),
                     );
-                    error_log( 'PriceTuneX: Added simple product: ' . $product->get_name() . ' (ID: ' . $product->get_id() . ', Price: ' . $product->get_regular_price() . ')' );
+                    
                 }
             }
         }
 
-        // DEBUG: Final breakdown
-        error_log( 'PriceTuneX: Total variations/products found: ' . count( $product_data ) );
-        error_log( 'PriceTuneX: Processed variations count: ' . count( $processed_variations ) );
-        
         // Group by parent to see the breakdown
         $debug_breakdown = array();
         foreach ( $product_data as $item ) {
@@ -259,8 +234,6 @@ class Pricetunex_Product_Query {
                 $debug_breakdown[ $product_name ] = 1;
             }
         }
-        
-        error_log( 'PriceTuneX Debug Breakdown: ' . print_r( $debug_breakdown, true ) );
 
         return $product_data;
     }

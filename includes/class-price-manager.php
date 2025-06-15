@@ -425,16 +425,16 @@ class Pricetunex_Price_Manager {
     private function calculate_price_preview( $product, $rule_data ) {
         $regular_price = $product->get_regular_price();
         $sale_price = $product->get_sale_price();
-        
+
         if ( empty( $regular_price ) || ! is_numeric( $regular_price ) ) {
             return null;
         }
 
         $regular_price = floatval( $regular_price );
         $sale_price = ! empty( $sale_price ) ? floatval( $sale_price ) : 0;
-        
+
         $target_price_type = isset( $rule_data['target_price_type'] ) ? $rule_data['target_price_type'] : 'smart';
-        
+
         // Get product name with variation details if applicable
         $product_name = $product->get_name();
         if ( $product->is_type( 'variation' ) ) {
@@ -444,135 +444,230 @@ class Pricetunex_Price_Manager {
             }
         }
 
-        // Handle different target price types
+        // Base preview structure
+        $preview = array(
+            'name' => $product_name,
+            'target_price_type' => $target_price_type,
+            'regular_price' => array(
+                'original' => $regular_price,
+                'formatted_original' => wc_price( $regular_price ),
+            ),
+            'sale_price' => array(
+                'original' => $sale_price,
+                'formatted_original' => $sale_price > 0 ? wc_price( $sale_price ) : null,
+            ),
+            'updates' => array(), // Will contain the actual updates
+            'primary_change' => array(), // The main price change customers see
+        );
+
+        // Calculate updates based on target price type
         switch ( $target_price_type ) {
             case 'smart':
-                if ( $sale_price > 0 ) {
-                    // Show sale price change
-                    $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
-                    if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                        $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
-                    }
-                    $new_sale_price = max( 0, min( $new_sale_price, $regular_price ) );
-                    
-                    return array(
-                        'name'               => $product_name,
-                        'old_price'          => wc_price( $sale_price ),
-                        'new_price'          => wc_price( $new_sale_price ),
-                        'change_type'        => $new_sale_price > $sale_price ? 'increase' : 'decrease',
-                        'change_amount'      => wc_price( abs( $new_sale_price - $sale_price ) ),
-                        'price_type_updated' => 'Sale Price',
-                    );
-                } else {
-                    // Show regular price change
-                    $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
-                    if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                        $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
-                    }
-                    $new_regular_price = max( 0, $new_regular_price );
-                    
-                    return array(
-                        'name'               => $product_name,
-                        'old_price'          => wc_price( $regular_price ),
-                        'new_price'          => wc_price( $new_regular_price ),
-                        'change_type'        => $new_regular_price > $regular_price ? 'increase' : 'decrease',
-                        'change_amount'      => wc_price( abs( $new_regular_price - $regular_price ) ),
-                        'price_type_updated' => 'Regular Price',
-                    );
-                }
+                $preview = $this->calculate_smart_preview( $preview, $rule_data );
                 break;
-                
+
             case 'regular_only':
-                $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
-                if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                    $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
-                }
-                $new_regular_price = max( 0, $new_regular_price );
-                
-                return array(
-                    'name'               => $product_name,
-                    'old_price'          => wc_price( $regular_price ),
-                    'new_price'          => wc_price( $new_regular_price ),
-                    'change_type'        => $new_regular_price > $regular_price ? 'increase' : 'decrease',
-                    'change_amount'      => wc_price( abs( $new_regular_price - $regular_price ) ),
-                    'price_type_updated' => 'Regular Price',
-                );
+                $preview = $this->calculate_regular_only_preview( $preview, $rule_data );
                 break;
-                
+
             case 'sale_only':
                 if ( $sale_price <= 0 ) {
                     return null; // Skip products without sale prices
                 }
-                
-                $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
-                if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                    $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
-                }
-                $new_sale_price = max( 0, min( $new_sale_price, $regular_price ) );
-                
-                return array(
-                    'name'               => $product_name,
-                    'old_price'          => wc_price( $sale_price ),
-                    'new_price'          => wc_price( $new_sale_price ),
-                    'change_type'        => $new_sale_price > $sale_price ? 'increase' : 'decrease',
-                    'change_amount'      => wc_price( abs( $new_sale_price - $sale_price ) ),
-                    'price_type_updated' => 'Sale Price',
-                );
+                $preview = $this->calculate_sale_only_preview( $preview, $rule_data );
                 break;
-                
+
             case 'both_prices':
-                // UPDATED: Show both price changes for better clarity
-                $new_regular_price = $this->calculate_new_price( $regular_price, $rule_data );
-                if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                    $new_regular_price = $this->apply_psychological_pricing( $new_regular_price, $rule_data );
-                }
-                $new_regular_price = max( 0, $new_regular_price );
-                
-                $preview_data = array(
-                    'name'               => $product_name,
-                    'price_type_updated' => 'Both Prices',
-                    'is_both_prices'     => true, // Flag to identify both prices mode
-                    'regular_price' => array(
-                        'old' => wc_price( $regular_price ),
-                        'new' => wc_price( $new_regular_price ),
-                        'change_type' => $new_regular_price > $regular_price ? 'increase' : 'decrease',
-                        'change_amount' => wc_price( abs( $new_regular_price - $regular_price ) ),
-                    ),
-                );
-                
-                // Add sale price if it exists
-                if ( $sale_price > 0 ) {
-                    $new_sale_price = $this->calculate_new_price( $sale_price, $rule_data );
-                    if ( ! empty( $rule_data['apply_rounding'] ) ) {
-                        $new_sale_price = $this->apply_psychological_pricing( $new_sale_price, $rule_data );
-                    }
-                    $new_sale_price = max( 0, min( $new_sale_price, $new_regular_price ) );
-                    
-                    $preview_data['sale_price'] = array(
-                        'old' => wc_price( $sale_price ),
-                        'new' => wc_price( $new_sale_price ),
-                        'change_type' => $new_sale_price > $sale_price ? 'increase' : 'decrease',
-                        'change_amount' => wc_price( abs( $new_sale_price - $sale_price ) ),
-                    );
-                    
-                    // For overall change type, use the customer-facing price (sale price)
-                    $preview_data['change_type'] = $new_sale_price > $sale_price ? 'increase' : 'decrease';
-                    $preview_data['change_amount'] = wc_price( abs( $new_sale_price - $sale_price ) );
-                    $preview_data['old_price'] = wc_price( $sale_price );
-                    $preview_data['new_price'] = wc_price( $new_sale_price );
-                } else {
-                    // No sale price, use regular price for overall change
-                    $preview_data['change_type'] = $new_regular_price > $regular_price ? 'increase' : 'decrease';
-                    $preview_data['change_amount'] = wc_price( abs( $new_regular_price - $regular_price ) );
-                    $preview_data['old_price'] = wc_price( $regular_price );
-                    $preview_data['new_price'] = wc_price( $new_regular_price );
-                }
-                
-                return $preview_data;
+                $preview = $this->calculate_both_prices_preview( $preview, $rule_data );
                 break;
         }
-        
-        return null;
+
+        return $preview;
+    }
+
+    /**
+     * Calculate smart preview (updates the price customers see)
+     */
+    private function calculate_smart_preview( $preview, $rule_data ) {
+        $sale_price = $preview['sale_price']['original'];
+        $regular_price = $preview['regular_price']['original'];
+
+        if ( $sale_price > 0 ) {
+            // Update sale price (what customers see)
+            $new_price = $this->calculate_new_price( $sale_price, $rule_data );
+            $new_price = $this->apply_rounding_if_enabled( $new_price, $rule_data );
+            $new_price = max( 0, min( $new_price, $regular_price ) );
+
+            $preview['updates']['sale'] = array(
+                'new' => $new_price,
+                'formatted_new' => wc_price( $new_price ),
+            );
+
+            $preview['primary_change'] = array(
+                'type' => 'sale',
+                'label' => 'Sale Price',
+                'old' => $sale_price,
+                'new' => $new_price,
+                'formatted_old' => wc_price( $sale_price ),
+                'formatted_new' => wc_price( $new_price ),
+                'change_type' => $new_price > $sale_price ? 'increase' : 'decrease',
+                'change_amount' => abs( $new_price - $sale_price ),
+                'formatted_change' => wc_price( abs( $new_price - $sale_price ) ),
+            );
+        } else {
+            // Update regular price
+            $new_price = $this->calculate_new_price( $regular_price, $rule_data );
+            $new_price = $this->apply_rounding_if_enabled( $new_price, $rule_data );
+            $new_price = max( 0, $new_price );
+
+            $preview['updates']['regular'] = array(
+                'new' => $new_price,
+                'formatted_new' => wc_price( $new_price ),
+            );
+
+            $preview['primary_change'] = array(
+                'type' => 'regular',
+                'label' => 'Regular Price',
+                'old' => $regular_price,
+                'new' => $new_price,
+                'formatted_old' => wc_price( $regular_price ),
+                'formatted_new' => wc_price( $new_price ),
+                'change_type' => $new_price > $regular_price ? 'increase' : 'decrease',
+                'change_amount' => abs( $new_price - $regular_price ),
+                'formatted_change' => wc_price( abs( $new_price - $regular_price ) ),
+            );
+        }
+
+        return $preview;
+    }
+
+    /**
+     * Calculate regular only preview
+     */
+    private function calculate_regular_only_preview( $preview, $rule_data ) {
+        $regular_price = $preview['regular_price']['original'];
+
+        $new_price = $this->calculate_new_price( $regular_price, $rule_data );
+        $new_price = $this->apply_rounding_if_enabled( $new_price, $rule_data );
+        $new_price = max( 0, $new_price );
+
+        $preview['updates']['regular'] = array(
+            'new' => $new_price,
+            'formatted_new' => wc_price( $new_price ),
+        );
+
+        $preview['primary_change'] = array(
+            'type' => 'regular',
+            'label' => 'Regular Price',
+            'old' => $regular_price,
+            'new' => $new_price,
+            'formatted_old' => wc_price( $regular_price ),
+            'formatted_new' => wc_price( $new_price ),
+            'change_type' => $new_price > $regular_price ? 'increase' : 'decrease',
+            'change_amount' => abs( $new_price - $regular_price ),
+            'formatted_change' => wc_price( abs( $new_price - $regular_price ) ),
+        );
+
+        return $preview;
+    }
+
+    /**
+     * Calculate sale only preview
+     */
+    private function calculate_sale_only_preview( $preview, $rule_data ) {
+        $sale_price = $preview['sale_price']['original'];
+        $regular_price = $preview['regular_price']['original'];
+
+        $new_price = $this->calculate_new_price( $sale_price, $rule_data );
+        $new_price = $this->apply_rounding_if_enabled( $new_price, $rule_data );
+        $new_price = max( 0, min( $new_price, $regular_price ) );
+
+        $preview['updates']['sale'] = array(
+            'new' => $new_price,
+            'formatted_new' => wc_price( $new_price ),
+        );
+
+        $preview['primary_change'] = array(
+            'type' => 'sale',
+            'label' => 'Sale Price',
+            'old' => $sale_price,
+            'new' => $new_price,
+            'formatted_old' => wc_price( $sale_price ),
+            'formatted_new' => wc_price( $new_price ),
+            'change_type' => $new_price > $sale_price ? 'increase' : 'decrease',
+            'change_amount' => abs( $new_price - $sale_price ),
+            'formatted_change' => wc_price( abs( $new_price - $sale_price ) ),
+        );
+
+        return $preview;
+    }
+
+    /**
+     * Calculate both prices preview - SIMPLIFIED
+     */
+    private function calculate_both_prices_preview( $preview, $rule_data ) {
+        $regular_price = $preview['regular_price']['original'];
+        $sale_price = $preview['sale_price']['original'];
+
+        // Update regular price
+        $new_regular = $this->calculate_new_price( $regular_price, $rule_data );
+        $new_regular = $this->apply_rounding_if_enabled( $new_regular, $rule_data );
+        $new_regular = max( 0, $new_regular );
+
+        $preview['updates']['regular'] = array(
+            'new' => $new_regular,
+            'formatted_new' => wc_price( $new_regular ),
+        );
+
+        // Update sale price if exists
+        if ( $sale_price > 0 ) {
+            $new_sale = $this->calculate_new_price( $sale_price, $rule_data );
+            $new_sale = $this->apply_rounding_if_enabled( $new_sale, $rule_data );
+            $new_sale = max( 0, min( $new_sale, $new_regular ) );
+
+            $preview['updates']['sale'] = array(
+                'new' => $new_sale,
+                'formatted_new' => wc_price( $new_sale ),
+            );
+
+            // Primary change is the customer-facing price (sale price)
+            $preview['primary_change'] = array(
+                'type' => 'both',
+                'label' => 'Both Prices',
+                'old' => $sale_price,
+                'new' => $new_sale,
+                'formatted_old' => wc_price( $sale_price ),
+                'formatted_new' => wc_price( $new_sale ),
+                'change_type' => $new_sale > $sale_price ? 'increase' : 'decrease',
+                'change_amount' => abs( $new_sale - $sale_price ),
+                'formatted_change' => wc_price( abs( $new_sale - $sale_price ) ),
+            );
+        } else {
+            // Primary change is regular price
+            $preview['primary_change'] = array(
+                'type' => 'both',
+                'label' => 'Both Prices',
+                'old' => $regular_price,
+                'new' => $new_regular,
+                'formatted_old' => wc_price( $regular_price ),
+                'formatted_new' => wc_price( $new_regular ),
+                'change_type' => $new_regular > $regular_price ? 'increase' : 'decrease',
+                'change_amount' => abs( $new_regular - $regular_price ),
+                'formatted_change' => wc_price( abs( $new_regular - $regular_price ) ),
+            );
+        }
+
+        return $preview;
+    }
+
+    /**
+     * Helper: Apply rounding if enabled
+     */
+    private function apply_rounding_if_enabled( $price, $rule_data ) {
+        if ( ! empty( $rule_data['apply_rounding'] ) ) {
+            return $this->apply_psychological_pricing( $price, $rule_data );
+        }
+        return $price;
     }
 
     /**
