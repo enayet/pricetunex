@@ -100,6 +100,7 @@ class Pricetunex_Product_Query {
             $category_ids = array_map( 'absint', $rule_data['categories'] );
             
             // Use tax_query for category filtering
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
             $args['tax_query'] = array(
                 array(
                     'taxonomy' => 'product_cat',
@@ -125,6 +126,7 @@ class Pricetunex_Product_Query {
             $tag_ids = array_map( 'absint', $rule_data['tags'] );
             
             // Use tax_query for tag filtering
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
             $args['tax_query'] = array(
                 array(
                     'taxonomy' => 'product_tag',

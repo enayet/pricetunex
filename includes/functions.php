@@ -415,11 +415,12 @@ function pricetunex_debug_log( $data, $message = '' ) {
     }
     
     if ( is_array( $data ) || is_object( $data ) ) {
-        $log_message .= print_r( $data, true );
+        $log_message .= wp_json_encode( $data, true );
     } else {
         $log_message .= $data;
     }
     
+    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
     return error_log( $log_message );
 }
 

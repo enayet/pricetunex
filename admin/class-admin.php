@@ -159,13 +159,14 @@ class Pricetunex_Admin {
         }
 
         // DEBUG: Log all received data
-        error_log( 'PriceTuneX Apply Rules - Raw POST data: ' . print_r( $_POST, true ) );
+        //error_log( 'PriceTuneX Apply Rules - Raw POST data: ' . print_r( $_POST, true ) );
 
         // Get and sanitize form data
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $rule_data = $this->sanitize_rule_data( $_POST );
 
         // DEBUG: Log sanitized data
-        error_log( 'PriceTuneX Apply Rules - Sanitized data: ' . print_r( $rule_data, true ) );
+        //error_log( 'PriceTuneX Apply Rules - Sanitized data: ' . print_r( $rule_data, true ) );
 
         // Validate rule data
         $validation = $this->validate_rule_data( $rule_data );
@@ -190,6 +191,7 @@ class Pricetunex_Admin {
             }
             
         } catch ( Exception $e ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX Apply Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while applying rules.' );
         }
@@ -205,6 +207,7 @@ class Pricetunex_Admin {
         }
 
         // Get and sanitize form data
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $rule_data = $this->sanitize_rule_data( $_POST );
 
         // Validate rule data
@@ -231,6 +234,7 @@ class Pricetunex_Admin {
             }
             
         } catch ( Exception $e ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX Preview Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while generating preview.' );
         }
@@ -261,6 +265,7 @@ class Pricetunex_Admin {
                 wp_send_json_error( $result['message'] );
             }
         } catch ( Exception $e ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX Undo Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while undoing changes.' );
         }
@@ -326,6 +331,7 @@ class Pricetunex_Admin {
             ) );
 
         } catch ( Exception $e ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX Stats Error: ' . $e->getMessage() );
             wp_send_json_error( 'Failed to load statistics.' );
         }
@@ -418,7 +424,7 @@ class Pricetunex_Admin {
         
 
         // DEBUG: Log the final sanitized data
-        error_log( 'PriceTuneX: Final sanitized rule data: ' . print_r( $sanitized, true ) );
+        //error_log( 'PriceTuneX: Final sanitized rule data: ' . print_r( $sanitized, true ) );
 
         return $sanitized;
     }
@@ -521,7 +527,7 @@ class Pricetunex_Admin {
                 printf(
                     '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
                     esc_attr( $type ),
-                    $message
+                    wp_kses_post($message)
                 );
             }
             

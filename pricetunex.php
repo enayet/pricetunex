@@ -295,8 +295,7 @@ final class Pricetunex {
      */
     public function woocommerce_missing_notice() {
         /* translators: %1$s: Plugin name, %2$s: WooCommerce link */
-        $message = sprintf(
-            esc_html__( '%1$s requires %2$s to be installed and active.', 'pricetunex' ),
+        $message = sprintf(esc_html__( '%1$s requires %2$s to be installed and active.', 'pricetunex' ),
             '<strong>' . esc_html__( 'PriceTuneX', 'pricetunex' ) . '</strong>',
             '<a href="https://wordpress.org/plugins/woocommerce/" target="_blank">' . esc_html__( 'WooCommerce', 'pricetunex' ) . '</a>'
         );
@@ -311,8 +310,9 @@ final class Pricetunex {
      * PHP version notice
      */
     public function php_version_notice() {
-        /* translators: %1$s: Plugin name, %2$s: Required PHP version, %3$s: Current PHP version */
+        
         $message = sprintf(
+            /* translators: %1$s: Plugin name, %2$s: Required PHP version, %3$s: Current PHP version */
             esc_html__( '%1$s requires PHP version %2$s or higher. You are running version %3$s.', 'pricetunex' ),
             '<strong>' . esc_html__( 'PriceTuneX', 'pricetunex' ) . '</strong>',
             '<strong>7.4</strong>',
@@ -332,8 +332,7 @@ final class Pricetunex {
         global $wp_version;
 
         /* translators: %1$s: Plugin name, %2$s: Required WordPress version, %3$s: Current WordPress version */
-        $message = sprintf(
-            esc_html__( '%1$s requires WordPress version %2$s or higher. You are running version %3$s.', 'pricetunex' ),
+        $message = sprintf(esc_html__( '%1$s requires WordPress version %2$s or higher. You are running version %3$s.', 'pricetunex' ),
             '<strong>' . esc_html__( 'PriceTuneX', 'pricetunex' ) . '</strong>',
             '<strong>5.0</strong>',
             '<strong>' . esc_html( $wp_version ) . '</strong>'
@@ -350,8 +349,7 @@ final class Pricetunex {
      */
     public function wc_version_notice() {
         /* translators: %1$s: Plugin name, %2$s: Required WooCommerce version, %3$s: Current WooCommerce version */
-        $message = sprintf(
-            esc_html__( '%1$s requires WooCommerce version %2$s or higher. You are running version %3$s.', 'pricetunex' ),
+        $message = sprintf(esc_html__( '%1$s requires WooCommerce version %2$s or higher. You are running version %3$s.', 'pricetunex' ),
             '<strong>' . esc_html__( 'PriceTuneX', 'pricetunex' ) . '</strong>',
             '<strong>6.0</strong>',
             '<strong>' . esc_html( WC_VERSION ) . '</strong>'

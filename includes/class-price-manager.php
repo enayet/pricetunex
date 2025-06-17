@@ -80,6 +80,7 @@ class Pricetunex_Price_Manager {
 
         } catch ( Exception $e ) {
             // Log error
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX Error: ' . $e->getMessage() );
             
             return array(
@@ -132,6 +133,7 @@ class Pricetunex_Price_Manager {
             }
 
         } catch ( Exception $e ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX Error updating product ' . $product->get_id() . ': ' . $e->getMessage() );
             return false;
         }
@@ -773,6 +775,7 @@ class Pricetunex_Price_Manager {
 
         } catch ( Exception $e ) {
             // Log error but continue with other products
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
             error_log( 'PriceTuneX: Failed to restore product ' . $product->get_id() . ' - ' . $e->getMessage() );
         }
     }
