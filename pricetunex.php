@@ -1,6 +1,7 @@
 <?php
 /**
  * Plugin Name: PriceTuneX – WooCommerce Smart Price Manager
+ * Plugin URI: https://theweblab.xyz/pricetunex/
  * Description: Bulk price editor with smart rounding and psychological pricing tools for WooCommerce.
  * Version: 1.0.0
  * Author: TheWebLab
@@ -8,10 +9,10 @@
  * Text Domain: pricetunex
  * Domain Path: /languages
  * Requires at least: 5.0
- * Tested up to: 6.5
+ * Tested up to: 6.8
  * Requires PHP: 7.4
  * WC requires at least: 6.0
- * WC tested up to: 8.8
+ * WC tested up to: 9.9.4
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * 

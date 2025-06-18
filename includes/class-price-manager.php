@@ -695,8 +695,6 @@ class Pricetunex_Price_Manager {
         update_option( 'pricetunex_price_backup', $backup_data );
     }
 
-    // ... (rest of the methods remain the same as they were working correctly)
-
     /**
      * Undo the last price changes
      *

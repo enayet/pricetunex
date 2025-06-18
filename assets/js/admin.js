@@ -1,5 +1,5 @@
 /**
- * PriceTuneX Admin JavaScript - UPDATED WITH TARGET PRICE TYPE
+ * PriceTuneX Admin JavaScript - CLEANED VERSION (Removed Duplicates)
  */
 (function($) {
     'use strict';
@@ -89,7 +89,7 @@
          */
         initFormDependencies: function() {
             this.handleRuleTypeChange();
-            this.handleTargetPriceTypeChange(); // NEW
+            this.handleTargetPriceTypeChange();
             this.handleTargetScopeChange();
             this.handleRoundingToggle();
             this.handleRoundingTypeChange();
@@ -111,7 +111,7 @@
         },
 
         /**
-         * NEW: Handle target price type change
+         * Handle target price type change
          */
         handleTargetPriceTypeChange: function() {
             var targetPriceType = $('#target_price_type').val();
@@ -148,7 +148,6 @@
             
             if (isChecked) {
                 $('#rounding-options').show();
-                // Also check if custom is selected to show custom field
                 this.handleRoundingTypeChange();
             } else {
                 $('#rounding-options').hide();
@@ -191,7 +190,7 @@
                     nonce: pricetunex_ajax.nonce,
                     rule_type: formData.rule_type,
                     rule_value: formData.rule_value,
-                    target_price_type: formData.target_price_type, // NEW
+                    target_price_type: formData.target_price_type,
                     target_scope: formData.target_scope,
                     categories: formData.categories,
                     tags: formData.tags,
@@ -220,7 +219,7 @@
         },
 
         /**
-         * Handle apply rules - USES MODAL
+         * Handle apply rules
          */
         handleApplyRules: function(e) {
             e.preventDefault();
@@ -230,7 +229,6 @@
                 return;
             }
             
-            // Get the current preview count for a better confirmation message
             var previewCount = $('#preview-results .count').text();
             var targetPriceType = formData.target_price_type;
             var priceTypeText = this.getPriceTypeDisplayText(targetPriceType);
@@ -242,7 +240,7 @@
         },
 
         /**
-         * NEW: Get display text for price type
+         * Get display text for price type
          */
         getPriceTypeDisplayText: function(targetPriceType) {
             var priceTypeTexts = {
@@ -255,7 +253,7 @@
         },
 
         /**
-         * Handle undo last changes - USES MODAL
+         * Handle undo last changes
          */
         handleUndoLast: function(e) {
             e.preventDefault();
@@ -275,7 +273,7 @@
         },
 
         /**
-         * Handle clear logs - USES MODAL
+         * Handle clear logs
          */
         handleClearLogs: function(e) {
             e.preventDefault();
@@ -287,7 +285,7 @@
         },
 
         /**
-         * Handle modal confirmation - HANDLES ALL MODAL ACTIONS
+         * Handle modal confirmation
          */
         handleModalConfirm: function() {
             var action = $('#pricetunex-modal').data('action');
@@ -327,7 +325,7 @@
                     nonce: pricetunex_ajax.nonce,
                     rule_type: formData.rule_type,
                     rule_value: formData.rule_value,
-                    target_price_type: formData.target_price_type, // NEW
+                    target_price_type: formData.target_price_type,
                     target_scope: formData.target_scope,
                     categories: formData.categories,
                     tags: formData.tags,
@@ -421,7 +419,7 @@
         },
 
         /**
-         * Get form data - UPDATED WITH TARGET PRICE TYPE
+         * Get form data
          */
         getFormData: function() {
             var data = {};
@@ -429,7 +427,7 @@
             // Basic fields
             data.rule_type = $('#rule_type').val() || 'percentage';
             data.rule_value = parseFloat($('#rule_value').val()) || 0;
-            data.target_price_type = $('#target_price_type').val() || 'smart'; // NEW
+            data.target_price_type = $('#target_price_type').val() || 'smart';
             data.target_scope = $('#target_scope').val() || 'all';
             
             // Scope-specific fields
@@ -448,14 +446,11 @@
             data.rounding_type = $('#rounding_type').val() || '0.99';
             data.custom_ending = parseFloat($('#custom_ending').val()) || 0;
             
-            // Debug log the form data
-            console.log('PriceTuneX getFormData:', data);
-            
             return data;
         },
 
         /**
-         * Form validation - UPDATED WITH TARGET PRICE TYPE VALIDATION
+         * Form validation
          */
         validateForm: function(data) {
             // Check if rule value is provided
@@ -516,9 +511,8 @@
                 }
             }
             
-            // NEW: Special validation for sale_only target price type
+            // Special validation for sale_only target price type
             if (data.target_price_type === 'sale_only') {
-                // Show informational message about sale_only
                 var infoMessage = 'Note: Only products with active sale prices will be updated when using "Sale Price Only" mode.';
                 this.showMessage(infoMessage, 'info');
             }
@@ -527,7 +521,7 @@
         },
 
         /**
-         * Display preview results - UPDATED TO HANDLE BOTH PRICES STRUCTURE
+         * Display preview results
          */
         displayPreview: function(data) {
             var html = '<div class="preview-summary">';
@@ -536,7 +530,6 @@
             if (data.preview_data && data.preview_data.products && data.preview_data.products.length > 0) {
                 html += '<div class="preview-list">';
 
-                // Show preview note if we're showing a limited sample
                 if (data.products_affected > data.preview_data.products.length) {
                     html += '<p class="preview-note"><em>Showing first ' + data.preview_data.products.length + 
                            ' products (out of ' + data.products_affected + ' total that will be affected)</em></p>';
@@ -556,13 +549,12 @@
         },
 
         /**
-         * Render individual preview item - SIMPLIFIED
+         * Render individual preview item
          */
         renderPreviewItem: function(product) {
             var html = '<div class="preview-item">';
             html += '<strong>' + product.name + '</strong><br>';
 
-            // Show the primary change (what customers see)
             if (product.primary_change) {
                 var change = product.primary_change;
                 html += '<div class="primary-change">';
@@ -577,7 +569,6 @@
                 html += '</div>';
                 html += '</div>';
 
-                // Show detailed breakdown for both_prices mode
                 if (change.type === 'both' && product.updates) {
                     html += '<div class="detailed-breakdown">';
 
@@ -614,7 +605,6 @@
          * Load activity logs
          */
         loadLogs: function() {
-            // Clear existing content and show single loading indicator
             $('#logs-container').html('<div class="logs-loading"><p>Loading logs...</p></div>');
             
             $.ajax({
@@ -683,7 +673,6 @@
                             $('#last-update').text(response.data.last_update);
                         }
                         
-                        // Update additional stats if elements exist
                         if (response.data.stats) {
                             var stats = response.data.stats;
                             $('.stat-simple-products').text(stats.simple_products || 0);
@@ -696,7 +685,6 @@
                     }
                 },
                 error: function() {
-                    // Silently fail for stats - non-critical
                     console.log('Failed to load statistics');
                 }
             });
@@ -749,21 +737,16 @@
         },
 
         /**
-         * Show message notification - UPDATED TO SUPPORT INFO TYPE
+         * Show message notification
          */
         showMessage: function(message, type) {
             type = type || 'info';
             
-            // Remove existing messages
             $('.pricetunex-message').remove();
             
-            // Create new message
             var $message = $('<div class="pricetunex-message ' + type + '">' + message + '</div>');
-            
-            // Insert after the main heading
             $('.pricetunex-admin h1').after($message);
             
-            // Auto-hide after 5 seconds (except for info messages which hide after 3 seconds)
             var hideDelay = type === 'info' ? 3000 : 5000;
             setTimeout(function() {
                 $message.fadeOut(300, function() {
@@ -771,7 +754,6 @@
                 });
             }, hideDelay);
             
-            // Scroll to top to show message
             $('html, body').animate({
                 scrollTop: $('.pricetunex-admin').offset().top - 50
             }, 300);
@@ -784,8 +766,6 @@
             $('#pricetunex-rules-form')[0].reset();
             this.initFormDependencies();
             this.clearPreview();
-            
-            // Clear any validation highlights
             $('.form-group').removeClass('error');
         }
     };
@@ -794,7 +774,6 @@
      * Initialize when document is ready
      */
     $(document).ready(function() {
-        // Only initialize on our admin page
         if ($('.pricetunex-admin').length) {
             console.log('PriceTuneX: Admin page detected, initializing...');
             PriceTuneXAdmin.init();
@@ -805,16 +784,9 @@
      * Handle escape key to close modals
      */
     $(document).keyup(function(e) {
-        if (e.keyCode === 27) { // Escape key
+        if (e.keyCode === 27) {
             PriceTuneXAdmin.hideModal();
         }
-    });
-
-    /**
-     * Handle window resize
-     */
-    $(window).resize(function() {
-        // Add any responsive handling here if needed
     });
 
     /**
@@ -836,7 +808,7 @@
     });
 
     /**
-     * Make the admin interface globally accessible for debugging
+     * Make the admin interface globally accessible
      */
     window.PriceTuneXAdmin = PriceTuneXAdmin;
 
@@ -844,67 +816,7 @@
      * Console log for debugging
      */
     if (typeof console !== 'undefined' && console.log) {
-        console.log('PriceTuneX Admin JS loaded successfully - WITH TARGET PRICE TYPE SUPPORT');
-    }
-
-
-
-
-    /**
-     * Initialize when document is ready
-     */
-    $(document).ready(function() {
-        // Only initialize on our admin page
-        if ($('.pricetunex-admin').length) {
-            console.log('PriceTuneX: Admin page detected, initializing...');
-            PriceTuneXAdmin.init();
-        }
-    });
-
-    /**
-     * Handle escape key to close modals
-     */
-    $(document).keyup(function(e) {
-        if (e.keyCode === 27) { // Escape key
-            PriceTuneXAdmin.hideModal();
-        }
-    });
-
-    /**
-     * Handle window resize
-     */
-    $(window).resize(function() {
-        // Add any responsive handling here if needed
-    });
-
-    /**
-     * Prevent form submission on enter in number inputs
-     */
-    $(document).on('keypress', 'input[type="number"]', function(e) {
-        if (e.which === 13) {
-            e.preventDefault();
-        }
-    });
-
-    /**
-     * Handle clicks outside modal to close
-     */
-    $(document).on('click', '.pricetunex-modal', function(e) {
-        if (e.target === this) {
-            PriceTuneXAdmin.hideModal();
-        }
-    });
-
-    /**
-     * Make the admin interface globally accessible for debugging
-     */
-    window.PriceTuneXAdmin = PriceTuneXAdmin;
-
-    /**
-     * Console log for debugging
-     */
-    if (typeof console !== 'undefined' && console.log) {
-        console.log('PriceTuneX Admin JS loaded successfully - WITH TARGET PRICE TYPE SUPPORT');
+        console.log('PriceTuneX Admin JS loaded successfully');
     }
 
 })(jQuery);

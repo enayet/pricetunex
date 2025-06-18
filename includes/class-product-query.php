@@ -222,21 +222,6 @@ class Pricetunex_Product_Query {
             }
         }
 
-        // Group by parent to see the breakdown
-        $debug_breakdown = array();
-        foreach ( $product_data as $item ) {
-            if ( isset( $item['parent_id'] ) ) {
-                $parent_name = wc_get_product( $item['parent_id'] )->get_name();
-                if ( ! isset( $debug_breakdown[ $parent_name ] ) ) {
-                    $debug_breakdown[ $parent_name ] = 0;
-                }
-                $debug_breakdown[ $parent_name ]++;
-            } else {
-                $product_name = $item['product']->get_name();
-                $debug_breakdown[ $product_name ] = 1;
-            }
-        }
-
         return $product_data;
     }
 

@@ -158,15 +158,9 @@ class Pricetunex_Admin {
             return;
         }
 
-        // DEBUG: Log all received data
-        //error_log( 'PriceTuneX Apply Rules - Raw POST data: ' . print_r( $_POST, true ) );
-
         // Get and sanitize form data
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
         $rule_data = $this->sanitize_rule_data( $_POST );
-
-        // DEBUG: Log sanitized data
-        //error_log( 'PriceTuneX Apply Rules - Sanitized data: ' . print_r( $rule_data, true ) );
 
         // Validate rule data
         $validation = $this->validate_rule_data( $rule_data );
@@ -422,9 +416,6 @@ class Pricetunex_Admin {
         $sanitized['rounding_type'] = isset( $data['rounding_type'] ) ? sanitize_text_field( wp_unslash( $data['rounding_type'] ) ) : '0.99';
         $sanitized['custom_ending'] = isset( $data['custom_ending'] ) ? floatval( $data['custom_ending'] ) : 0;      
         
-
-        // DEBUG: Log the final sanitized data
-        //error_log( 'PriceTuneX: Final sanitized rule data: ' . print_r( $sanitized, true ) );
 
         return $sanitized;
     }
