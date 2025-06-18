@@ -412,7 +412,21 @@ class Pricetunex_Admin {
         $sanitized['price_max'] = isset( $data['price_max'] ) ? floatval( $data['price_max'] ) : 0;
 
         // Rounding options
-        $sanitized['apply_rounding'] = isset( $data['apply_rounding'] ) && ! empty( $data['apply_rounding'] );
+        $sanitized['apply_rounding'] = false; // Default to false
+
+        if ( isset( $data['apply_rounding'] ) ) {
+            $apply_rounding_value = $data['apply_rounding'];
+
+            // Handle different possible values that represent "true"
+            if ( $apply_rounding_value === true || 
+                 $apply_rounding_value === 'true' || 
+                 $apply_rounding_value === '1' || 
+                 $apply_rounding_value === 1 ||
+                 $apply_rounding_value === 'on' ) {
+                $sanitized['apply_rounding'] = true;
+            }
+        }        
+        
         $sanitized['rounding_type'] = isset( $data['rounding_type'] ) ? sanitize_text_field( wp_unslash( $data['rounding_type'] ) ) : '0.99';
         $sanitized['custom_ending'] = isset( $data['custom_ending'] ) ? floatval( $data['custom_ending'] ) : 0;      
         

@@ -51,6 +51,22 @@
             // Modal events
             $(document).on('click', '.modal-close, #modal-cancel', this.hideModal.bind(this));
             $(document).on('click', '#modal-confirm', this.handleModalConfirm.bind(this));
+            
+            $(document).on('change', '#apply_rounding', function() {
+                var isChecked = $(this).is(':checked');
+                console.log('Rounding checkbox changed to:', isChecked);
+
+                // Force UI update
+                if (isChecked) {
+                    $('#rounding-options').show();
+                    PriceTuneXAdmin.handleRoundingTypeChange();
+                } else {
+                    $('#rounding-options').hide();
+                    $('#custom-ending-field').hide();
+                }
+            });            
+            
+            
         },
 
         /**
@@ -442,7 +458,7 @@
             data.price_max = parseFloat($('#price_max').val()) || 0;
             
             // Rounding options
-            data.apply_rounding = $('#apply_rounding').is(':checked');
+            data.apply_rounding = $('#apply_rounding').is(':checked') ? true : false; // Explicit boolean conversion
             data.rounding_type = $('#rounding_type').val() || '0.99';
             data.custom_ending = parseFloat($('#custom_ending').val()) || 0;
             
@@ -762,12 +778,20 @@
         /**
          * Reset form to initial state
          */
+        
         resetForm: function() {
             $('#pricetunex-rules-form')[0].reset();
+
+            // Explicitly reset checkboxes to ensure proper state
+            $('#apply_rounding').prop('checked', false);
+            $('input[name="product_types[]"]').prop('checked', false);
+
             this.initFormDependencies();
             this.clearPreview();
             $('.form-group').removeClass('error');
-        }
+        }        
+        
+        
     };
 
     /**
@@ -818,5 +842,19 @@
     if (typeof console !== 'undefined' && console.log) {
         console.log('PriceTuneX Admin JS loaded successfully');
     }
+    
+    
+    // Override problematic extension methods that might interfere
+    var originalAddEventListener = Element.prototype.addEventListener;
+    Element.prototype.addEventListener = function(type, listener, options) {
+        // Block extension event listeners on our admin elements
+        if (this.closest && this.closest('.pricetunex-admin') && 
+            typeof listener === 'function' && 
+            listener.toString().includes('parentElement')) {
+            return; // Block the problematic listener
+        }
+        return originalAddEventListener.call(this, type, listener, options);
+    };    
+    
 
 })(jQuery);

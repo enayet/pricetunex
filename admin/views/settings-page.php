@@ -193,6 +193,10 @@ $product_types = $this->get_product_types();
                     </div>
 
                     <!-- Quick Actions -->
+                    <?php
+                        $backup_enabled = pricetunex_get_setting( 'backup_prices', true );
+                        if ($backup_enabled == true){
+                    ?>
                     <div class="pricetunex-card actions-card">
                         <h3><?php echo esc_html__( 'Quick Actions', 'pricetunex' ); ?></h3>
                         <div class="quick-actions">
@@ -203,6 +207,9 @@ $product_types = $this->get_product_types();
                             <p class="description"><?php echo esc_html__( 'Restore prices to their previous values.', 'pricetunex' ); ?></p>
                         </div>
                     </div>
+                    <?php
+                    }
+                    ?>
 
                     <!-- Statistics -->
                     <div class="pricetunex-card stats-card">

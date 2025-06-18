@@ -1067,3 +1067,7 @@
     min-width: 60px;
     display: inline-block;
 }
+
+.dashicons-undo{
+    line-height: 1.3;
+}
