@@ -10,7 +10,6 @@
          * Initialize the admin interface
          */
         init: function() {
-            console.log('PriceTuneX Admin: Initializing...');
             
             // Check if required objects exist
             if (typeof pricetunex_ajax === 'undefined') {
@@ -24,7 +23,6 @@
             this.loadLogs();
             this.updateStatistics();
             
-            console.log('PriceTuneX Admin: Initialization complete');
         },
 
         /**
@@ -54,7 +52,6 @@
             
             $(document).on('change', '#apply_rounding', function() {
                 var isChecked = $(this).is(':checked');
-                console.log('Rounding checkbox changed to:', isChecked);
 
                 // Force UI update
                 if (isChecked) {
@@ -319,7 +316,6 @@
                     this.executeClearLogs();
                     break;
                 default:
-                    console.log('Unknown modal action:', action);
                     break;
             }
         },
@@ -799,7 +795,6 @@
      */
     $(document).ready(function() {
         if ($('.pricetunex-admin').length) {
-            console.log('PriceTuneX: Admin page detected, initializing...');
             PriceTuneXAdmin.init();
         }
     });
@@ -835,13 +830,6 @@
      * Make the admin interface globally accessible
      */
     window.PriceTuneXAdmin = PriceTuneXAdmin;
-
-    /**
-     * Console log for debugging
-     */
-    if (typeof console !== 'undefined' && console.log) {
-        console.log('PriceTuneX Admin JS loaded successfully');
-    }
     
     
     // Override problematic extension methods that might interfere

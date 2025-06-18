@@ -185,8 +185,6 @@ class Pricetunex_Admin {
             }
             
         } catch ( Exception $e ) {
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log( 'PriceTuneX Apply Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while applying rules.' );
         }
     }
@@ -228,8 +226,6 @@ class Pricetunex_Admin {
             }
             
         } catch ( Exception $e ) {
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log( 'PriceTuneX Preview Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while generating preview.' );
         }
     }
@@ -259,8 +255,6 @@ class Pricetunex_Admin {
                 wp_send_json_error( $result['message'] );
             }
         } catch ( Exception $e ) {
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log( 'PriceTuneX Undo Error: ' . $e->getMessage() );
             wp_send_json_error( 'An error occurred while undoing changes.' );
         }
     }
@@ -325,8 +319,6 @@ class Pricetunex_Admin {
             ) );
 
         } catch ( Exception $e ) {
-            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-            error_log( 'PriceTuneX Stats Error: ' . $e->getMessage() );
             wp_send_json_error( 'Failed to load statistics.' );
         }
     }
